@@ -1,0 +1,6 @@
+{
+  "name": "Class Attendance Tracker",
+  "description": "A premium, role-based class attendance tracking app with interactive schedulers and real-time statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
