@@ -28,48 +28,6 @@ export default function StudentDashboard({
   const [searchTerm, setSearchTerm] = useState('');
   const [hoveredLecture, setHoveredLecture] = useState<{ id: string; index: number } | null>(null);
 
-  const [currentMonth, setCurrentMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
-    const now = new Date();
-    const day = now.getDate();
-    return Math.floor((day - 1) / 7);
-  });
-
-  const getWeeksInMonth = (monthStart: Date) => {
-    const weeks: Date[] = [];
-    const firstDay = new Date(monthStart);
-    const day = firstDay.getDay();
-    const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1);
-    let currentMonday = new Date(firstDay.setDate(diff));
-    currentMonday.setHours(0, 0, 0, 0);
-
-    // Keep adding weeks until the Monday is strictly in the next month
-    while (currentMonday.getMonth() === monthStart.getMonth() || weeks.length === 0) {
-      weeks.push(new Date(currentMonday));
-      const nextModay = new Date(currentMonday);
-      nextModay.setDate(nextModay.getDate() + 7);
-      currentMonday = nextModay;
-    }
-    return weeks;
-  };
-
-  const weeks = getWeeksInMonth(currentMonth);
-  const activeWeekStart = weeks[selectedWeekIndex] || weeks[0];
-  const activeWeekEnd = new Date(activeWeekStart);
-  activeWeekEnd.setDate(activeWeekEnd.getDate() + 6);
-  activeWeekEnd.setHours(23, 59, 59, 999);
-
-  const changeMonth = (offset: number) => {
-    const nextMonth = new Date(currentMonth);
-    nextMonth.setMonth(nextMonth.getMonth() + offset);
-    setCurrentMonth(nextMonth);
-    setSelectedWeekIndex(0);
-  };
-
-  const formatMonth = (date: Date) => {
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  };
-
   const filteredSubjects = subjects.filter((sub) =>
     sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     sub.code.toLowerCase().includes(searchTerm.toLowerCase())
@@ -92,48 +50,6 @@ export default function StudentDashboard({
             className="w-full pl-10 pr-4 py-2 rounded-xl text-slate-800 text-sm bg-slate-50 border border-slate-200 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all"
             id="search-student-subjects"
           />
-        </div>
-
-        {/* Month & Week Selector Hub */}
-        <div className="flex flex-col items-center space-y-2 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl shadow-4xs shrink-0 w-full sm:w-auto">
-          {/* Month Selector */}
-          <div className="flex items-center space-x-4 w-full justify-between sm:justify-center">
-            <button 
-              onClick={() => changeMonth(-1)}
-              className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-200 transition-colors"
-            >
-              <ChevronLeft className="h-4.5 w-4.5" />
-            </button>
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-indigo-500" />
-              <span className="text-sm font-black text-slate-800 uppercase tracking-widest w-32 text-center">
-                {formatMonth(currentMonth)}
-              </span>
-            </div>
-            <button 
-              onClick={() => changeMonth(1)}
-              className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-200 transition-colors"
-            >
-              <ChevronRight className="h-4.5 w-4.5" />
-            </button>
-          </div>
-          
-          {/* Week Tabs */}
-          <div className="flex items-center space-x-1.5 w-full overflow-x-auto pb-1 no-scrollbar justify-center">
-            {weeks.map((weekStart, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedWeekIndex(idx)}
-                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${
-                  selectedWeekIndex === idx 
-                    ? 'bg-indigo-600 text-white shadow-sm' 
-                    : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                Week {idx + 1}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Informative Tip */}
@@ -282,65 +198,54 @@ export default function StudentDashboard({
                   </div>
 
                   {/* Lecture grid */}
-                  <div className="flex flex-wrap gap-2.5" id={`lecture-grid-${sub.id}`}>
-                    {Array.from({ length: sub.totalLectures }).map((_, idx) => {
-                      const status = records[idx] || 'unmarked';
-                      const dateStr = sub.lectureDates?.[idx];
-                      
-                      // Filter by current week if the subject uses specific dates
-                      if (dateStr) {
-                         const d = new Date(dateStr);
-                         d.setHours(0,0,0,0);
-                         if (d < activeWeekStart || d > activeWeekEnd) return null;
-                      }
-
-                      // Determine day abbreviation for button
-                      let dayAbbr = 'Mon';
-                      if (dateStr) {
-                        dayAbbr = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' });
-                      } else if (sub.scheduleDays && sub.scheduleDays.length > 0) {
-                        dayAbbr = sub.scheduleDays[idx % sub.scheduleDays.length];
-                      }
-                      
-                      return (
-                        <button
-                          key={idx}
-                          disabled={readOnly}
-                          onClick={() => onToggleLecture(sub.id, idx)}
-                          onMouseEnter={() => setHoveredLecture({ id: sub.id, index: idx })}
-                          onMouseLeave={() => setHoveredLecture(null)}
-                          className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
-                            readOnly ? 'cursor-default opacity-90' : 'cursor-pointer hover:scale-105 active:scale-95'
-                          } select-none transition-all relative ${
-                            status === 'attended'
-                              ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
-                              : status === 'missed'
-                              ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
-                              : 'bg-slate-50 border-slate-205 text-slate-400 hover:border-slate-300'
-                          }`}
-                          title={dateStr ? `Date: ${dateStr}` : `Lecture ${idx + 1}: ${status.toUpperCase()}`}
-                          id={`btn-lecture-slot-${sub.id}-${idx}`}
-                        >
-                          {status === 'attended' ? (
-                            <CheckCircle2 className="h-4.5 w-4.5" />
-                          ) : status === 'missed' ? (
-                            <XCircle className="h-4.5 w-4.5" />
-                          ) : (
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">{dayAbbr}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                    
-                    {sub.lectureDates && sub.lectureDates.length > 0 && Array.from({ length: sub.totalLectures }).filter((_, idx) => {
-                       const d = new Date(sub.lectureDates![idx]);
-                       d.setHours(0,0,0,0);
-                       return d >= activeWeekStart && d <= activeWeekEnd;
-                    }).length === 0 && (
-                      <div className="text-xs text-slate-400 font-medium py-2 px-1">
-                        No lectures scheduled for this week.
+                  <div className="space-y-6 max-h-[320px] overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                    {groups.map((group, gIdx) => (
+                      <div key={gIdx} className="space-y-4">
+                        {group.month && (
+                          <h4 className="text-sm font-black text-slate-800 border-b border-slate-100 pb-1">{group.month}</h4>
+                        )}
+                        <div className="space-y-3 pl-1">
+                          {group.weeks.map((week, wIdx) => (
+                            <div key={wIdx}>
+                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center space-x-2">
+                                <Calendar className="h-3 w-3 text-slate-300" />
+                                <span>{week.label}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2.5">
+                                {week.slots.map((slot) => (
+                                  <button
+                                    key={slot.idx}
+                                    disabled={readOnly}
+                                    onClick={() => onToggleLecture(sub.id, slot.idx)}
+                                    onMouseEnter={() => setHoveredLecture({ id: sub.id, index: slot.idx })}
+                                    onMouseLeave={() => setHoveredLecture(null)}
+                                    className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
+                                      readOnly ? 'cursor-default opacity-90' : 'cursor-pointer hover:scale-105 active:scale-95'
+                                    } select-none transition-all relative ${
+                                      slot.status === 'attended'
+                                        ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
+                                        : slot.status === 'missed'
+                                        ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
+                                        : 'bg-slate-50 border-slate-205 text-slate-400 hover:border-slate-300'
+                                    }`}
+                                    title={slot.dateStr ? `Date: ${slot.dateStr}` : `Lecture ${slot.idx + 1}: ${slot.status.toUpperCase()}`}
+                                    id={`btn-lecture-slot-${sub.id}-${slot.idx}`}
+                                  >
+                                    {slot.status === 'attended' ? (
+                                      <CheckCircle2 className="h-4.5 w-4.5" />
+                                    ) : slot.status === 'missed' ? (
+                                      <XCircle className="h-4.5 w-4.5" />
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-slate-500 uppercase">{slot.dayAbbr}</span>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
 
                   {/* Quick-Mark settings ribbon */}
