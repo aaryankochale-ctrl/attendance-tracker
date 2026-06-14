@@ -255,22 +255,14 @@ export default function StudentDashboard({
                     {!readOnly ? (
                       <div className="flex items-center space-x-2 w-full sm:w-auto">
                         <button
-                          onClick={() => {
-                            if (window.confirm('Mark all sessions for this course as Attended?')) {
-                              onBulkMark(sub.id, 'attended');
-                            }
-                          }}
+                          onClick={() => onBulkMark(sub.id, 'attended')}
                           className="text-[9.5px] font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg transition-colors shadow-4xs"
                           id={`btn-bulk-attend-${sub.id}`}
                         >
                           All Present
                         </button>
                         <button
-                          onClick={() => {
-                            if (window.confirm('Mark all sessions for this course as Missed?')) {
-                              onBulkMark(sub.id, 'missed');
-                            }
-                          }}
+                          onClick={() => onBulkMark(sub.id, 'missed')}
                           className="text-[9.5px] font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg transition-colors shadow-4xs"
                           id={`btn-bulk-miss-${sub.id}`}
                         >
