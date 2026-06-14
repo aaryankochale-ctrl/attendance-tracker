@@ -28,27 +28,46 @@ export default function StudentDashboard({
   const [searchTerm, setSearchTerm] = useState('');
   const [hoveredLecture, setHoveredLecture] = useState<{ id: string; index: number } | null>(null);
 
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+  const [currentMonth, setCurrentMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
     const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-    const monday = new Date(now.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
-    return monday;
+    const day = now.getDate();
+    return Math.floor((day - 1) / 7);
   });
 
-  const changeWeek = (offset: number) => {
-    const nextWeek = new Date(currentWeekStart);
-    nextWeek.setDate(nextWeek.getDate() + offset * 7);
-    setCurrentWeekStart(nextWeek);
+  const getWeeksInMonth = (monthStart: Date) => {
+    const weeks: Date[] = [];
+    const firstDay = new Date(monthStart);
+    const day = firstDay.getDay();
+    const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1);
+    let currentMonday = new Date(firstDay.setDate(diff));
+    currentMonday.setHours(0, 0, 0, 0);
+
+    // Keep adding weeks until the Monday is strictly in the next month
+    while (currentMonday.getMonth() === monthStart.getMonth() || weeks.length === 0) {
+      weeks.push(new Date(currentMonday));
+      const nextModay = new Date(currentMonday);
+      nextModay.setDate(nextModay.getDate() + 7);
+      currentMonday = nextModay;
+    }
+    return weeks;
   };
 
-  const currentWeekEnd = new Date(currentWeekStart);
-  currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
-  currentWeekEnd.setHours(23, 59, 59, 999);
+  const weeks = getWeeksInMonth(currentMonth);
+  const activeWeekStart = weeks[selectedWeekIndex] || weeks[0];
+  const activeWeekEnd = new Date(activeWeekStart);
+  activeWeekEnd.setDate(activeWeekEnd.getDate() + 6);
+  activeWeekEnd.setHours(23, 59, 59, 999);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const changeMonth = (offset: number) => {
+    const nextMonth = new Date(currentMonth);
+    nextMonth.setMonth(nextMonth.getMonth() + offset);
+    setCurrentMonth(nextMonth);
+    setSelectedWeekIndex(0);
+  };
+
+  const formatMonth = (date: Date) => {
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
   const filteredSubjects = subjects.filter((sub) =>
@@ -75,26 +94,46 @@ export default function StudentDashboard({
           />
         </div>
 
-        {/* Week Selector & Filters Hub */}
-        <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-xl shadow-4xs shrink-0">
-          <button 
-            onClick={() => changeWeek(-1)}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="flex items-center space-x-1.5 px-2">
-            <Calendar className="h-3.5 w-3.5 text-indigo-500" />
-            <span className="text-[11px] font-bold text-slate-700 font-mono tracking-tight w-24 text-center">
-              {formatDate(currentWeekStart)} - {formatDate(currentWeekEnd)}
-            </span>
+        {/* Month & Week Selector Hub */}
+        <div className="flex flex-col items-center space-y-2 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl shadow-4xs shrink-0 w-full sm:w-auto">
+          {/* Month Selector */}
+          <div className="flex items-center space-x-4 w-full justify-between sm:justify-center">
+            <button 
+              onClick={() => changeMonth(-1)}
+              className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-200 transition-colors"
+            >
+              <ChevronLeft className="h-4.5 w-4.5" />
+            </button>
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-indigo-500" />
+              <span className="text-sm font-black text-slate-800 uppercase tracking-widest w-32 text-center">
+                {formatMonth(currentMonth)}
+              </span>
+            </div>
+            <button 
+              onClick={() => changeMonth(1)}
+              className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-200 transition-colors"
+            >
+              <ChevronRight className="h-4.5 w-4.5" />
+            </button>
           </div>
-          <button 
-            onClick={() => changeWeek(1)}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
+          
+          {/* Week Tabs */}
+          <div className="flex items-center space-x-1.5 w-full overflow-x-auto pb-1 no-scrollbar justify-center">
+            {weeks.map((weekStart, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSelectedWeekIndex(idx)}
+                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${
+                  selectedWeekIndex === idx 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
+                    : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Week {idx + 1}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Informative Tip */}
@@ -251,9 +290,16 @@ export default function StudentDashboard({
                       // Filter by current week if the subject uses specific dates
                       if (dateStr) {
                          const d = new Date(dateStr);
-                         // We compare date ignoring time
                          d.setHours(0,0,0,0);
-                         if (d < currentWeekStart || d > currentWeekEnd) return null;
+                         if (d < activeWeekStart || d > activeWeekEnd) return null;
+                      }
+
+                      // Determine day abbreviation for button
+                      let dayAbbr = 'Mon';
+                      if (dateStr) {
+                        dayAbbr = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' });
+                      } else if (sub.scheduleDays && sub.scheduleDays.length > 0) {
+                        dayAbbr = sub.scheduleDays[idx % sub.scheduleDays.length];
                       }
                       
                       return (
@@ -280,7 +326,7 @@ export default function StudentDashboard({
                           ) : status === 'missed' ? (
                             <XCircle className="h-4.5 w-4.5" />
                           ) : (
-                            <span className="text-[10.5px] font-mono font-medium text-slate-400">{dateStr ? new Date(dateStr).getDate() : idx + 1}</span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">{dayAbbr}</span>
                           )}
                         </button>
                       );
@@ -289,7 +335,7 @@ export default function StudentDashboard({
                     {sub.lectureDates && sub.lectureDates.length > 0 && Array.from({ length: sub.totalLectures }).filter((_, idx) => {
                        const d = new Date(sub.lectureDates![idx]);
                        d.setHours(0,0,0,0);
-                       return d >= currentWeekStart && d <= currentWeekEnd;
+                       return d >= activeWeekStart && d <= activeWeekEnd;
                     }).length === 0 && (
                       <div className="text-xs text-slate-400 font-medium py-2 px-1">
                         No lectures scheduled for this week.
