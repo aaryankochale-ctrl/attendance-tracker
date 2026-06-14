@@ -125,6 +125,83 @@ export default function StudentDashboard({
               }
             }
 
+            // Determine structured groupings for this subject
+            interface SlotData { idx: number; status: AttendanceStatus; dateStr: string | null; dayAbbr: string; }
+            interface WeekGroup { label: string; slots: SlotData[]; }
+            interface MonthGroup { month: string; weeks: WeekGroup[]; }
+            
+            let groups: MonthGroup[] = [];
+            
+            if (sub.lectureDates && sub.lectureDates.length > 0) {
+              const groupedMap: Record<string, Record<string, SlotData[]>> = {};
+              const monthsOrder: string[] = [];
+              const weeksOrderMap: Record<string, string[]> = {};
+              
+              sub.lectureDates.forEach((dateStr, idx) => {
+                const d = new Date(dateStr);
+                const monthName = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                
+                const firstDayOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+                const pastDaysOfMonth = d.getDate() - 1;
+                const firstDayWeekday = firstDayOfMonth.getDay() === 0 ? 6 : firstDayOfMonth.getDay() - 1;
+                const weekNum = Math.floor((pastDaysOfMonth + firstDayWeekday) / 7) + 1;
+                const weekLabel = `Week ${weekNum}`;
+                
+                if (!groupedMap[monthName]) {
+                  groupedMap[monthName] = {};
+                  monthsOrder.push(monthName);
+                  weeksOrderMap[monthName] = [];
+                }
+                if (!groupedMap[monthName][weekLabel]) {
+                  groupedMap[monthName][weekLabel] = [];
+                  weeksOrderMap[monthName].push(weekLabel);
+                }
+                
+                groupedMap[monthName][weekLabel].push({
+                  idx,
+                  status: records[idx] || 'unmarked',
+                  dateStr,
+                  dayAbbr: d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+                });
+              });
+              
+              groups = monthsOrder.map(month => ({
+                month,
+                weeks: weeksOrderMap[month].map(week => ({
+                  label: week,
+                  slots: groupedMap[month][week]
+                }))
+              }));
+            } else {
+              const weeks: WeekGroup[] = [];
+              const daysPerWeek = sub.scheduleDays?.length || 5;
+              
+              Array.from({ length: sub.totalLectures }).forEach((_, idx) => {
+                const weekNum = Math.floor(idx / daysPerWeek) + 1;
+                const weekLabel = `Week ${weekNum}`;
+                
+                let weekObj = weeks.find(w => w.label === weekLabel);
+                if (!weekObj) {
+                  weekObj = { label: weekLabel, slots: [] };
+                  weeks.push(weekObj);
+                }
+                
+                let dayAbbr = 'MON';
+                if (sub.scheduleDays && sub.scheduleDays.length > 0) {
+                  dayAbbr = sub.scheduleDays[idx % sub.scheduleDays.length].toUpperCase();
+                }
+                
+                weekObj.slots.push({
+                  idx,
+                  status: records[idx] || 'unmarked',
+                  dateStr: null,
+                  dayAbbr
+                });
+              });
+              
+              groups = [{ month: '', weeks }];
+            }
+
             return (
               <div 
                 key={sub.id} 
