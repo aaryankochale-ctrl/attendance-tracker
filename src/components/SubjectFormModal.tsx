@@ -27,6 +27,13 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
   const [scheduleDays, setScheduleDays] = useState<string[]>([]);
   const [lectureDates, setLectureDates] = useState<string[]>([]);
   const [newDateStr, setNewDateStr] = useState('');
+  
+  // Generator State
+  const [generatorStart, setGeneratorStart] = useState('');
+  const [generatorEnd, setGeneratorEnd] = useState('');
+  const [generatorHolidays, setGeneratorHolidays] = useState<string[]>([]);
+  const [newHolidayStr, setNewHolidayStr] = useState('');
+  
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Synchronize state when the editing target changes or modal opens
@@ -50,8 +57,12 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       setSelectedColor(SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)]);
       setScheduleDays(['Mon', 'Wed']);
       setLectureDates([]);
+      setGeneratorStart('');
+      setGeneratorEnd('');
+      setGeneratorHolidays([]);
     }
     setNewDateStr('');
+    setNewHolidayStr('');
     setErrors({});
   }, [editingSubject, isOpen]);
 
@@ -62,6 +73,50 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
     setScheduleDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
+  };
+
+  const formatDateLocal = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const handleGenerateSchedule = () => {
+    if (!generatorStart || !generatorEnd) {
+      alert('Please specify both a start and end date for the semester.');
+      return;
+    }
+    if (scheduleDays.length === 0) {
+      alert('Please select at least one Lecture Session Day above.');
+      return;
+    }
+
+    const start = new Date(generatorStart + 'T00:00:00');
+    const end = new Date(generatorEnd + 'T00:00:00');
+    if (start > end) {
+      alert('Start date must be before end date.');
+      return;
+    }
+
+    const generated: string[] = [];
+    const dayMap: Record<string, number> = {
+      'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+    };
+    const targetDays = scheduleDays.map(d => dayMap[d]);
+
+    const current = new Date(start);
+    while (current <= end) {
+      if (targetDays.includes(current.getDay())) {
+        const dateStr = formatDateLocal(current);
+        if (!generatorHolidays.includes(dateStr)) {
+          generated.push(dateStr);
+        }
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    setLectureDates(generated.sort());
   };
 
   const validate = (): boolean => {
@@ -338,6 +393,89 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
             <p className="mt-1.5 text-[11px] text-slate-400 font-medium">
               Highlight which days this class takes place each week.
             </p>
+          </div>
+
+          {/* Smart Schedule Generator */}
+          <div className="bg-slate-50 p-4.5 rounded-xl border border-slate-200 mt-6 space-y-4 shadow-4xs">
+            <div>
+              <h4 className="text-sm font-bold text-slate-800 flex items-center space-x-1.5 mb-1">
+                <Sparkles className="h-4.5 w-4.5 text-indigo-500" /> 
+                <span>Smart Schedule Generator</span>
+              </h4>
+              <p className="text-[11.5px] text-slate-500 font-medium">
+                Automatically create all specific lecture dates based on your selected Session Days and term dates, automatically skipping any holidays.
+              </p>
+            </div>
+             
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Term Start</label>
+                <input 
+                  type="date" 
+                  value={generatorStart} 
+                  onChange={e => setGeneratorStart(e.target.value)} 
+                  className="w-full px-3 py-2 rounded-lg text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-indigo-100 text-sm" 
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Term End</label>
+                <input 
+                  type="date" 
+                  value={generatorEnd} 
+                  onChange={e => setGeneratorEnd(e.target.value)} 
+                  className="w-full px-3 py-2 rounded-lg text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-indigo-100 text-sm" 
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Holidays / Days Off to Skip</label>
+              <div className="flex gap-2 mb-2">
+                <input 
+                  type="date" 
+                  value={newHolidayStr} 
+                  onChange={e => setNewHolidayStr(e.target.value)} 
+                  className="flex-1 px-3 py-2 rounded-lg text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-indigo-100 text-sm" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    if(newHolidayStr && !generatorHolidays.includes(newHolidayStr)) { 
+                      setGeneratorHolidays([...generatorHolidays, newHolidayStr]); 
+                      setNewHolidayStr(''); 
+                    } 
+                  }} 
+                  className="px-4 py-2 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-300 transition-colors"
+                >
+                  Add Holiday
+                </button>
+              </div>
+              
+              {generatorHolidays.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {generatorHolidays.map(h => (
+                    <span key={h} className="inline-flex items-center space-x-1 bg-white border border-rose-200 px-2 py-1 rounded-md text-[10px] font-bold text-rose-700 shadow-sm">
+                      <span>{h}</span>
+                      <button
+                        type="button"
+                        onClick={() => setGeneratorHolidays(generatorHolidays.filter(d => d !== h))}
+                        className="text-rose-400 hover:text-rose-600 p-0.5 rounded"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button 
+              type="button" 
+              onClick={handleGenerateSchedule} 
+              className="w-full py-2.5 mt-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold text-sm rounded-lg transition-colors border border-indigo-200"
+            >
+              Generate Dates
+            </button>
           </div>
 
           {/* Actions Footer */}
