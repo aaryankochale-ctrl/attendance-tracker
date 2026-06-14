@@ -46,7 +46,21 @@ export default function Login() {
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'An error occurred during authentication.');
-    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setErrorMsg('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) throw error;
+      // On success, the page redirects to Google, no need to stop loading here
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred during Google authentication.');
       setIsLoading(false);
     }
   };
@@ -178,7 +192,9 @@ export default function Login() {
             {!isSignUp && (
               <button
                 type="button"
-                className="w-full flex justify-center items-center py-3 px-4 border border-slate-300 rounded-lg shadow-sm text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                onClick={handleGoogleSignIn}
+                disabled={isLoading}
+                className="w-full flex justify-center items-center py-3 px-4 border border-slate-300 rounded-lg shadow-sm text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50"
               >
                 <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
                 Sign in with Google
