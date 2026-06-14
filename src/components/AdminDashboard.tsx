@@ -198,25 +198,42 @@ export default function AdminDashboard({
                       </div>
                     </div>
                     <div className="bg-slate-50/75 border-t border-slate-100 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="text-xs">
-                        <span className="font-bold text-slate-700 block">Total Lectures In Week</span>
-                        <span className="text-slate-400 text-[10px]">Updates student tracking cells immediately</span>
-                      </div>
-                      <div className="flex items-center space-x-2.5">
-                        <button
-                          onClick={() => onUpdateLecturesCount(sub.id, Math.max(1, sub.totalLectures - 1))}
-                          disabled={sub.totalLectures <= 1}
-                          className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
-                        >–</button>
-                        <span className="font-mono font-bold text-slate-800 text-sm w-8 text-center bg-white p-1 rounded-md border border-slate-200 shadow-3xs">
-                          {sub.totalLectures}
-                        </span>
-                        <button
-                          onClick={() => onUpdateLecturesCount(sub.id, Math.min(40, sub.totalLectures + 1))}
-                          disabled={sub.totalLectures >= 40}
-                          className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
-                        >+</button>
-                      </div>
+                      {sub.lectureDates && sub.lectureDates.length > 0 ? (
+                        <div className="text-xs w-full flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-slate-700 block">Specific Dates Configured</span>
+                            <span className="text-slate-400 text-[10px]">{sub.lectureDates.length} total lecture(s) scheduled.</span>
+                          </div>
+                          <button
+                            onClick={() => onEditSubject(sub)}
+                            className="px-3 py-1.5 text-[10px] font-bold bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 shadow-sm transition-all"
+                          >
+                            Manage Dates
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-xs">
+                            <span className="font-bold text-slate-700 block">Total Lectures Count</span>
+                            <span className="text-slate-400 text-[10px]">Updates student tracking cells immediately</span>
+                          </div>
+                          <div className="flex items-center space-x-2.5">
+                            <button
+                              onClick={() => onUpdateLecturesCount(sub.id, Math.max(1, sub.totalLectures - 1))}
+                              disabled={sub.totalLectures <= 1}
+                              className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
+                            >–</button>
+                            <span className="font-mono font-bold text-slate-800 text-sm w-8 text-center bg-white p-1 rounded-md border border-slate-200 shadow-3xs">
+                              {sub.totalLectures}
+                            </span>
+                            <button
+                              onClick={() => onUpdateLecturesCount(sub.id, Math.min(40, sub.totalLectures + 1))}
+                              disabled={sub.totalLectures >= 40}
+                              className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
+                            >+</button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 );

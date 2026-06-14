@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Search, ToggleLeft, CheckCircle2, XCircle, Clock, RotateCcw, HelpCircle, CheckSquare, Sparkles } from 'lucide-react';
+import { Search, ToggleLeft, CheckCircle2, XCircle, Clock, RotateCcw, HelpCircle, CheckSquare, Sparkles, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { Subject, StudentAttendance, AttendanceStatus } from '../types';
 import { calculateSubjectStats } from '../data';
 
@@ -27,6 +27,29 @@ export default function StudentDashboard({
 }: StudentDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [hoveredLecture, setHoveredLecture] = useState<{ id: string; index: number } | null>(null);
+
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    const monday = new Date(now.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  });
+
+  const changeWeek = (offset: number) => {
+    const nextWeek = new Date(currentWeekStart);
+    nextWeek.setDate(nextWeek.getDate() + offset * 7);
+    setCurrentWeekStart(nextWeek);
+  };
+
+  const currentWeekEnd = new Date(currentWeekStart);
+  currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+  currentWeekEnd.setHours(23, 59, 59, 999);
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
 
   const filteredSubjects = subjects.filter((sub) =>
     sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -52,11 +75,33 @@ export default function StudentDashboard({
           />
         </div>
 
+        {/* Week Selector & Filters Hub */}
+        <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-xl shadow-4xs shrink-0">
+          <button 
+            onClick={() => changeWeek(-1)}
+            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="flex items-center space-x-1.5 px-2">
+            <Calendar className="h-3.5 w-3.5 text-indigo-500" />
+            <span className="text-[11px] font-bold text-slate-700 font-mono tracking-tight w-24 text-center">
+              {formatDate(currentWeekStart)} - {formatDate(currentWeekEnd)}
+            </span>
+          </div>
+          <button 
+            onClick={() => changeWeek(1)}
+            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
         {/* Informative Tip */}
         {!readOnly && (
-          <div className="text-xs text-slate-500 font-sans flex items-center space-x-1.5 self-center bg-slate-50 border border-slate-100 px-3.5 py-1.5 rounded-xl">
+          <div className="hidden lg:flex text-xs text-slate-500 font-sans items-center space-x-1.5 bg-slate-50 border border-slate-100 px-3.5 py-1.5 rounded-xl">
             <Sparkles className="h-3.5 w-3.5 text-indigo-500 animate-pulse" />
-            <span className="font-medium">Click slots to cycle: Unmarked → Present → Absent</span>
+            <span className="font-medium truncate">Click slots to cycle: Unmarked → Present → Absent</span>
           </div>
         )}
       </div>
@@ -189,7 +234,9 @@ export default function StudentDashboard({
                     {/* Tooltip feedback panel readout */}
                     <span className="text-[11px] text-indigo-500 font-bold font-sans h-4">
                       {hoveredLecture && hoveredLecture.id === sub.id 
-                        ? `Lecture Slot ${hoveredLecture.index + 1}` 
+                        ? (sub.lectureDates?.[hoveredLecture.index] 
+                            ? `Date: ${sub.lectureDates[hoveredLecture.index]}` 
+                            : `Lecture Slot ${hoveredLecture.index + 1}`)
                         : (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.join(' • ') : ''
                       }
                     </span>
@@ -199,6 +246,15 @@ export default function StudentDashboard({
                   <div className="flex flex-wrap gap-2.5" id={`lecture-grid-${sub.id}`}>
                     {Array.from({ length: sub.totalLectures }).map((_, idx) => {
                       const status = records[idx] || 'unmarked';
+                      const dateStr = sub.lectureDates?.[idx];
+                      
+                      // Filter by current week if the subject uses specific dates
+                      if (dateStr) {
+                         const d = new Date(dateStr);
+                         // We compare date ignoring time
+                         d.setHours(0,0,0,0);
+                         if (d < currentWeekStart || d > currentWeekEnd) return null;
+                      }
                       
                       return (
                         <button
@@ -216,7 +272,7 @@ export default function StudentDashboard({
                               ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
                               : 'bg-slate-50 border-slate-205 text-slate-400 hover:border-slate-300'
                           }`}
-                          title={`Lecture ${idx + 1}: ${status.toUpperCase()}`}
+                          title={dateStr ? `Date: ${dateStr}` : `Lecture ${idx + 1}: ${status.toUpperCase()}`}
                           id={`btn-lecture-slot-${sub.id}-${idx}`}
                         >
                           {status === 'attended' ? (
@@ -224,11 +280,21 @@ export default function StudentDashboard({
                           ) : status === 'missed' ? (
                             <XCircle className="h-4.5 w-4.5" />
                           ) : (
-                            <span className="text-[10.5px] font-mono font-medium text-slate-400">{idx + 1}</span>
+                            <span className="text-[10.5px] font-mono font-medium text-slate-400">{dateStr ? new Date(dateStr).getDate() : idx + 1}</span>
                           )}
                         </button>
                       );
                     })}
+                    
+                    {sub.lectureDates && sub.lectureDates.length > 0 && Array.from({ length: sub.totalLectures }).filter((_, idx) => {
+                       const d = new Date(sub.lectureDates![idx]);
+                       d.setHours(0,0,0,0);
+                       return d >= currentWeekStart && d <= currentWeekEnd;
+                    }).length === 0 && (
+                      <div className="text-xs text-slate-400 font-medium py-2 px-1">
+                        No lectures scheduled for this week.
+                      </div>
+                    )}
                   </div>
 
                   {/* Quick-Mark settings ribbon */}

@@ -25,6 +25,8 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
   const [room, setRoom] = useState('');
   const [selectedColor, setSelectedColor] = useState(SUBJECT_COLORS[0]);
   const [scheduleDays, setScheduleDays] = useState<string[]>([]);
+  const [lectureDates, setLectureDates] = useState<string[]>([]);
+  const [newDateStr, setNewDateStr] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Synchronize state when the editing target changes or modal opens
@@ -37,6 +39,7 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       setRoom(editingSubject.room || '');
       setSelectedColor(editingSubject.color || SUBJECT_COLORS[0]);
       setScheduleDays(editingSubject.scheduleDays || []);
+      setLectureDates(editingSubject.lectureDates || []);
     } else {
       // Set pristine default state
       setName('');
@@ -46,7 +49,9 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       setRoom('');
       setSelectedColor(SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)]);
       setScheduleDays(['Mon', 'Wed']);
+      setLectureDates([]);
     }
+    setNewDateStr('');
     setErrors({});
   }, [editingSubject, isOpen]);
 
@@ -63,8 +68,10 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = 'Subject name is required';
     if (!code.trim()) newErrors.code = 'Subject code is required';
-    if (totalLectures <= 0 || totalLectures > 40) {
-      newErrors.totalLectures = 'Lectures must be between 1 and 40';
+    if (lectureDates.length === 0) {
+      if (totalLectures <= 0 || totalLectures > 40) {
+        newErrors.totalLectures = 'Lectures must be between 1 and 40, or add specific dates.';
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -78,7 +85,8 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       id: editingSubject?.id,
       name: name.trim(),
       code: code.trim().toUpperCase(),
-      totalLectures,
+      totalLectures: lectureDates.length > 0 ? lectureDates.length : totalLectures,
+      lectureDates: lectureDates.length > 0 ? [...lectureDates].sort() : undefined,
       instructor: instructor.trim() || undefined,
       room: room.trim() || undefined,
       scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined,
@@ -169,29 +177,78 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
               )}
             </div>
 
-            {/* Total Scheduled Lectures */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider" title="Total lecture occurrences scheduled in this term">
-                Total Lectures *
+            {/* Specific Lecture Dates (Overrides Total Lectures) */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider" title="Specify precise dates for lectures">
+                Lecture Dates
               </label>
-              <input
-                type="number"
-                min={1}
-                max={40}
-                value={totalLectures}
-                onChange={(e) => setTotalLectures(parseInt(e.target.value) || 0)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border transition-all text-sm focus:outline-none focus:bg-white focus:ring-2 ${
-                  errors.totalLectures 
-                    ? 'border-rose-450 focus:ring-rose-105' 
-                    : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-505'
-                }`}
-                required
-                id="input-total-lectures"
-              />
-              {errors.totalLectures && (
-                <p className="mt-1 text-xs text-rose-500 font-medium">{errors.totalLectures}</p>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="date"
+                  value={newDateStr}
+                  onChange={(e) => setNewDateStr(e.target.value)}
+                  className="flex-1 px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border border-slate-200 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-505 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newDateStr && !lectureDates.includes(newDateStr)) {
+                      setLectureDates([...lectureDates, newDateStr].sort());
+                      setNewDateStr('');
+                    }
+                  }}
+                  className="px-4 py-2 bg-slate-800 text-white font-bold text-sm rounded-xl hover:bg-slate-700 transition-colors"
+                >
+                  Add Date
+                </button>
+              </div>
+              
+              {lectureDates.length > 0 ? (
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                  {lectureDates.map((date) => (
+                    <span key={date} className="inline-flex items-center space-x-1 bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
+                      <span>{date}</span>
+                      <button
+                        type="button"
+                        onClick={() => setLectureDates(lectureDates.filter(d => d !== date))}
+                        className="text-slate-400 hover:text-rose-500 p-0.5 rounded-md hover:bg-rose-50"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-slate-400 font-medium">
+                  If no dates are provided, we will use a raw lecture count instead.
+                </div>
               )}
             </div>
+
+            {/* Total Scheduled Lectures Fallback */}
+            {lectureDates.length === 0 && (
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider" title="Total lecture occurrences scheduled in this term">
+                  Total Lectures Count *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={40}
+                  value={totalLectures}
+                  onChange={(e) => setTotalLectures(parseInt(e.target.value) || 0)}
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border transition-all text-sm focus:outline-none focus:bg-white focus:ring-2 ${
+                    errors.totalLectures 
+                      ? 'border-rose-450 focus:ring-rose-105' 
+                      : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-505'
+                  }`}
+                  id="input-total-lectures"
+                />
+                {errors.totalLectures && (
+                  <p className="mt-1 text-xs text-rose-500 font-medium">{errors.totalLectures}</p>
+                )}
+              </div>
+            )}
 
             {/* Instructor */}
             <div>
