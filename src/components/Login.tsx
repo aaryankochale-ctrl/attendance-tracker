@@ -107,6 +107,23 @@ export default function Login() {
             <span className="text-xl font-bold text-slate-900 tracking-tight">AttendanceSync</span>
           </div>
 
+          <div className="flex p-1 bg-slate-100 rounded-lg mb-8">
+            <button
+              type="button"
+              onClick={() => { setIsSignUp(false); setErrorMsg(''); setSuccessMsg(''); }}
+              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${!isSignUp ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsSignUp(true); setErrorMsg(''); setSuccessMsg(''); }}
+              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${isSignUp ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Sign Up
+            </button>
+          </div>
+
           <div>
             <h2 className="text-3xl font-semibold text-slate-900 tracking-tight">
               {isSignUp ? 'Create an account' : 'Welcome back'}
@@ -201,21 +218,6 @@ export default function Login() {
               </button>
             )}
           </form>
-
-          <p className="mt-8 text-center text-sm text-slate-500">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button 
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setErrorMsg('');
-                setSuccessMsg('');
-              }}
-              className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors"
-            >
-              {isSignUp ? 'Sign in' : 'Sign up'}
-            </button>
-          </p>
         </div>
       </div>
     </div>
