@@ -117,8 +117,8 @@ export default function AdminDashboard({
 
       const rawText = response.text || "[]";
       let cleanJson = rawText;
-      if (rawText.includes("\`\`\`json")) {
-        cleanJson = rawText.replace(/\`\`\`json\n/g, '').replace(/\`\`\`/g, '');
+      if (rawText.includes("```json")) {
+        cleanJson = rawText.replace(/```json\n/g, '').replace(/```/g, '');
       }
 
       const results = JSON.parse(cleanJson);
@@ -156,7 +156,7 @@ export default function AdminDashboard({
         const color = SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)];
         
         newSubjects.push({
-          id: \`subj_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`,
+          id: `subj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: row.name,
           code: row.code,
           instructor: row.instructor || undefined,
@@ -170,12 +170,12 @@ export default function AdminDashboard({
 
       if (newSubjects.length > 0) {
         onBulkAddSubjects(newSubjects);
-        alert(\`AI Successfully extracted \${newSubjects.length} subjects!\`);
+        alert(`AI Successfully extracted ${newSubjects.length} subjects!`);
       } else {
         alert('AI could not identify any valid subjects from the image.');
       }
     } catch (err: any) {
-      alert(\`AI Error: \${err.message}\`);
+      alert(`AI Error: ${err.message}`);
     } finally {
       setIsAILoading(false);
       if (fileInputRef.current) {
@@ -268,6 +268,10 @@ export default function AdminDashboard({
         alert(`Error parsing CSV: ${error.message}`);
       }
     });
+    return;
+    }
+
+    alert('Unsupported file format. Please upload a .csv spreadsheet or an image (.png, .jpg).');
   };
 
   const handleDownloadTemplate = () => {
