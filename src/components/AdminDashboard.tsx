@@ -188,7 +188,9 @@ export default function AdminDashboard({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type.startsWith('image/')) {
+    const isImage = file.type.startsWith('image/') || /\.(png|jpe?g)$/i.test(file.name);
+
+    if (isImage) {
       if (!geminiApiKey) {
         setPendingImageFile(file);
         setShowApiKeyModal(true);
@@ -198,8 +200,9 @@ export default function AdminDashboard({
       return;
     }
 
-    Papa.parse(file, {
-      header: true,
+    if (file.type === 'text/csv' || /\.csv$/i.test(file.name)) {
+      Papa.parse(file, {
+        header: true,
       skipEmptyLines: true,
       complete: (results) => {
         const newSubjects: Subject[] = [];
