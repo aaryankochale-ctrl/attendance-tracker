@@ -105,18 +105,51 @@ export default function AdminDashboard({
         Return ONLY the raw JSON array without markdown backticks.
       `;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-1.5-pro',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: prompt },
-              { inlineData: { data: base64Str, mimeType: file.type } }
+      const MODELS_TO_TRY = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash-exp',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-1.5-flash-8b',
+        'gemini-1.0-pro-vision-latest',
+        'gemini-pro-vision'
+      ];
+
+      let response = null;
+      let lastError = null;
+
+      for (const modelName of MODELS_TO_TRY) {
+        try {
+          console.log(`Trying Gemini model: ${modelName}...`);
+          response = await ai.models.generateContent({
+            model: modelName,
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      data: base64Str,
+                      mimeType: file.type
+                    }
+                  }
+                ]
+              }
             ]
-          }
-        ],
-      });
+          });
+          console.log(`Success with model: ${modelName}`);
+          break; // It worked! Break out of the loop
+        } catch (err: any) {
+          console.warn(`Model ${modelName} failed:`, err.message);
+          lastError = err;
+        }
+      }
+
+      if (!response) {
+        throw new Error(`All AI models failed or are overloaded. Last error: ${lastError?.message}`);
+      }
 
       const rawText = response.text || "[]";
       let cleanJson = rawText;
