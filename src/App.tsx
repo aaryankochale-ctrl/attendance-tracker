@@ -205,6 +205,18 @@ export default function App() {
     await syncAndSave(updatedSubjects, updatedAttendance);
   };
 
+  // Bulk Add Subjects from CSV
+  const handleBulkAddSubjects = async (newSubjects: Subject[]) => {
+    const updatedSubjects = [...subjects, ...newSubjects];
+    const updatedAttendance = { ...attendance };
+    
+    newSubjects.forEach(sub => {
+      updatedAttendance[sub.id] = Array(sub.totalLectures).fill('unmarked');
+    });
+
+    await syncAndSave(updatedSubjects, updatedAttendance);
+  };
+
   // Delete subject
   const handleDeleteSubject = async (id: string) => {
     const updatedSubjects = subjects.filter(s => s.id !== id);
@@ -416,6 +428,7 @@ export default function App() {
               }}
               onDeleteSubject={handleDeleteSubject}
               onUpdateLecturesCount={handleUpdateLecturesCount}
+              onBulkAddSubjects={handleBulkAddSubjects}
             />
           </div>
         )}

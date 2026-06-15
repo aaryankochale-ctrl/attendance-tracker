@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, MapPin, User, Calendar, BookOpen, AlertCircle, Search, Users, ChevronRight } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Plus, Edit2, Trash2, MapPin, User, Calendar, BookOpen, AlertCircle, Search, Users, ChevronRight, Upload, Download } from 'lucide-react';
 import { Subject, Profile, AllUsersAttendance, SubjectStats } from '../types';
 import { calculateSubjectStats } from '../data';
+import { SUBJECT_COLORS } from '../data';
+import Papa from 'papaparse';
 import StudentDashboard from './StudentDashboard';
 import StatsOverview from './StatsOverview';
 
@@ -18,6 +20,7 @@ interface AdminDashboardProps {
   onEditSubject: (subject: Subject) => void;
   onDeleteSubject: (id: string) => void;
   onUpdateLecturesCount: (id: string, count: number) => void;
+  onBulkAddSubjects: (subjects: Subject[]) => void;
 }
 
 export default function AdminDashboard({
@@ -28,6 +31,7 @@ export default function AdminDashboard({
   onEditSubject,
   onDeleteSubject,
   onUpdateLecturesCount,
+  onBulkAddSubjects,
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'subjects' | 'students'>('subjects');
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +46,101 @@ export default function AdminDashboard({
   const filteredProfiles = allProfiles.filter(p => 
     p.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const formatDateLocal = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const newSubjects: Subject[] = [];
+        
+        results.data.forEach((row: any) => {
+          if (!row.name || !row.code) return; // Skip invalid rows
+          
+          const scheduleDays = row.days ? row.days.split(';').map((d: string) => d.trim()).filter(Boolean) : [];
+          const holidays = row.holidays ? row.holidays.split(';').map((d: string) => d.trim()).filter(Boolean) : [];
+          
+          let lectureDates: string[] = [];
+          
+          // Generate schedule if start and end dates are provided
+          if (row.start_date && row.end_date && scheduleDays.length > 0) {
+            const start = new Date(row.start_date + 'T00:00:00');
+            const end = new Date(row.end_date + 'T00:00:00');
+            
+            const dayMap: Record<string, number> = {
+              'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+            };
+            const targetDays = scheduleDays.map((d: string) => dayMap[d]).filter((d: number | undefined) => d !== undefined);
+            
+            const current = new Date(start);
+            while (current <= end) {
+              if (targetDays.includes(current.getDay())) {
+                const dateStr = formatDateLocal(current);
+                if (!holidays.includes(dateStr)) {
+                  lectureDates.push(dateStr);
+                }
+              }
+              current.setDate(current.getDate() + 1);
+            }
+          }
+          
+          const color = SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)];
+          
+          newSubjects.push({
+            id: `subj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: row.name,
+            code: row.code,
+            instructor: row.instructor || undefined,
+            room: row.room || undefined,
+            scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined,
+            lectureDates: lectureDates.length > 0 ? lectureDates.sort() : undefined,
+            totalLectures: lectureDates.length > 0 ? lectureDates.length : 5,
+            color
+          });
+        });
+
+        if (newSubjects.length > 0) {
+          onBulkAddSubjects(newSubjects);
+          alert(`Successfully imported ${newSubjects.length} subjects from timetable!`);
+        } else {
+          alert('No valid subjects found in the CSV. Please check the template format.');
+        }
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      },
+      error: (error: any) => {
+        alert(`Error parsing CSV: ${error.message}`);
+      }
+    });
+  };
+
+  const handleDownloadTemplate = () => {
+    const csvContent = "name,code,instructor,room,days,start_date,end_date,holidays\nArtificial Intelligence,CS-401,Dr. Smith,Room 101,Mon;Wed;Fri,2024-08-01,2024-12-01,2024-09-02;2024-11-28\nDatabase Systems,CS-302,Prof. Johnson,Lab 3,Tue;Thu,2024-08-01,2024-12-01,";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "timetable_template.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="space-y-6" id="admin-dashboard-root">
@@ -99,12 +198,37 @@ export default function AdminDashboard({
                 className="w-full pl-10 pr-4 py-2 rounded-xl text-slate-800 text-sm bg-slate-50 border border-slate-200 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all"
               />
             </div>
-            <button
-              onClick={onAddSubject}
-              className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all hover:shadow-md active:scale-[0.98]"
-            >
-              <Plus className="h-4.5 w-4.5" />
-              <span>New Subject</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <input 
+                type="file" 
+                accept=".csv" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                className="hidden" 
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+              >
+                <Upload className="h-4 w-4 text-slate-500" />
+                <span>Upload Timetable</span>
+              </button>
+              <button
+                onClick={onAddSubject}
+                className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all hover:shadow-md active:scale-[0.98]"
+              >
+                <Plus className="h-4.5 w-4.5" />
+                <span>New Subject</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Upload Notice */}
+          <div className="flex items-center justify-between bg-indigo-50/50 border border-indigo-100 px-4 py-2.5 rounded-xl text-xs shadow-sm">
+            <span className="text-indigo-800 font-medium">Want to bulk upload your semester timetable from Excel?</span>
+            <button onClick={handleDownloadTemplate} className="text-indigo-600 font-bold hover:text-indigo-700 hover:underline flex items-center space-x-1">
+              <Download className="h-3.5 w-3.5" />
+              <span>Download CSV Template</span>
             </button>
           </div>
 
