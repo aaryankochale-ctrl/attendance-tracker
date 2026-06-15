@@ -105,46 +105,60 @@ export default function AdminDashboard({
         Return ONLY the raw JSON array without markdown backticks.
       `;
 
-      const MODELS_TO_TRY = [
-        'gemini-2.5-flash',
-        'gemini-2.0-flash-exp',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-1.5-flash-8b',
-        'gemini-1.0-pro-vision-latest',
-        'gemini-pro-vision'
-      ];
-
       let response = null;
       let lastError = null;
 
-      for (const modelName of MODELS_TO_TRY) {
-        try {
-          console.log(`Trying Gemini model: ${modelName}...`);
-          response = await ai.models.generateContent({
-            model: modelName,
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { text: prompt },
-                  {
-                    inlineData: {
-                      data: base64Str,
-                      mimeType: file.type
-                    }
-                  }
-                ]
-              }
-            ]
-          });
-          console.log(`Success with model: ${modelName}`);
-          break; // It worked! Break out of the loop
-        } catch (err: any) {
-          console.warn(`Model ${modelName} failed:`, err.message);
-          lastError = err;
+      try {
+        // Dynamically fetch exactly which models are allowed for this specific API key
+        const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const modelsData = await modelsRes.json();
+        
+        let validModels = [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro'
+        ];
+
+        if (modelsData && modelsData.models) {
+          validModels = modelsData.models
+            .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+            .map((m: any) => m.name.replace('models/', ''));
+          console.log('Dynamically found valid models for your API key:', validModels);
+          
+          // Sort to prioritize newer models (flash models are generally faster for this)
+          validModels.sort((a, b) => b.localeCompare(a)); 
         }
+
+        for (const modelName of validModels) {
+          try {
+            console.log(`Trying Gemini model: ${modelName}...`);
+            response = await ai.models.generateContent({
+              model: modelName,
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { text: prompt },
+                    {
+                      inlineData: {
+                        data: base64Str,
+                        mimeType: file.type
+                      }
+                    }
+                  ]
+                }
+              ]
+            });
+            console.log(`Success with model: ${modelName}`);
+            break; // It worked! Break out of the loop
+          } catch (err: any) {
+            console.warn(`Model ${modelName} failed:`, err.message);
+            lastError = err;
+          }
+        }
+      } catch (err: any) {
+        lastError = err;
       }
 
       if (!response) {
