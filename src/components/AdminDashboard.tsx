@@ -9,6 +9,7 @@ import { Subject, Profile, AllUsersAttendance, SubjectStats } from '../types';
 import { calculateSubjectStats } from '../data';
 import { SUBJECT_COLORS } from '../data';
 import Papa from 'papaparse';
+import { GoogleGenAI } from '@google/genai';
 import StudentDashboard from './StudentDashboard';
 import StatsOverview from './StatsOverview';
 
@@ -49,6 +50,12 @@ export default function AdminDashboard({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isAILoading, setIsAILoading] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('geminiApiKey') || '');
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+
   const formatDateLocal = (date: Date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -56,9 +63,140 @@ export default function AdminDashboard({
     return `${y}-${m}-${d}`;
   };
 
+  const handleSaveApiKey = () => {
+    localStorage.setItem('geminiApiKey', apiKeyInput);
+    setGeminiApiKey(apiKeyInput);
+    setShowApiKeyModal(false);
+    if (pendingImageFile) {
+      processImageWithAI(pendingImageFile, apiKeyInput);
+      setPendingImageFile(null);
+    }
+  };
+
+  const processImageWithAI = async (file: File, apiKey: string) => {
+    setIsAILoading(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const base64Str = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const prompt = `
+        Analyze this timetable screenshot. Extract the class schedule into a clean JSON array.
+        Each object in the array must strictly have these fields:
+        - "name" (string, e.g. "Artificial Intelligence")
+        - "code" (string, e.g. "CS-401")
+        - "instructor" (string or null, e.g. "Dr. Smith")
+        - "room" (string or null, e.g. "Room 101")
+        - "days" (string, comma-separated e.g. "Mon,Wed,Fri", valid values: Mon, Tue, Wed, Thu, Fri, Sat, Sun. MUST BE EXACT MATCHES)
+        - "start_date" (string, format YYYY-MM-DD. Estimate from context or use "2024-08-01" if unknown)
+        - "end_date" (string, format YYYY-MM-DD. Estimate from context or use "2024-12-01" if unknown)
+        - "holidays" (string, comma-separated YYYY-MM-DD or null)
+        Return ONLY the raw JSON array without markdown backticks.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              { inlineData: { data: base64Str, mimeType: file.type } }
+            ]
+          }
+        ],
+      });
+
+      const rawText = response.text || "[]";
+      let cleanJson = rawText;
+      if (rawText.includes("\`\`\`json")) {
+        cleanJson = rawText.replace(/\`\`\`json\n/g, '').replace(/\`\`\`/g, '');
+      }
+
+      const results = JSON.parse(cleanJson);
+      
+      const newSubjects: Subject[] = [];
+      results.forEach((row: any) => {
+        if (!row.name || !row.code) return;
+        
+        const scheduleDays = row.days ? row.days.split(',').map((d: string) => d.trim()).filter(Boolean) : [];
+        const holidays = row.holidays ? row.holidays.split(',').map((d: string) => d.trim()).filter(Boolean) : [];
+        
+        let lectureDates: string[] = [];
+        
+        if (row.start_date && row.end_date && scheduleDays.length > 0) {
+          const start = new Date(row.start_date + 'T00:00:00');
+          const end = new Date(row.end_date + 'T00:00:00');
+          
+          const dayMap: Record<string, number> = {
+            'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+          };
+          const targetDays = scheduleDays.map((d: string) => dayMap[d]).filter((d: number | undefined) => d !== undefined);
+          
+          const current = new Date(start);
+          while (current <= end) {
+            if (targetDays.includes(current.getDay())) {
+              const dateStr = formatDateLocal(current);
+              if (!holidays.includes(dateStr)) {
+                lectureDates.push(dateStr);
+              }
+            }
+            current.setDate(current.getDate() + 1);
+          }
+        }
+        
+        const color = SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)];
+        
+        newSubjects.push({
+          id: \`subj_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`,
+          name: row.name,
+          code: row.code,
+          instructor: row.instructor || undefined,
+          room: row.room || undefined,
+          scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined,
+          lectureDates: lectureDates.length > 0 ? lectureDates.sort() : undefined,
+          totalLectures: lectureDates.length > 0 ? lectureDates.length : 5,
+          color
+        });
+      });
+
+      if (newSubjects.length > 0) {
+        onBulkAddSubjects(newSubjects);
+        alert(\`AI Successfully extracted \${newSubjects.length} subjects!\`);
+      } else {
+        alert('AI could not identify any valid subjects from the image.');
+      }
+    } catch (err: any) {
+      alert(\`AI Error: \${err.message}\`);
+    } finally {
+      setIsAILoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.type.startsWith('image/')) {
+      if (!geminiApiKey) {
+        setPendingImageFile(file);
+        setShowApiKeyModal(true);
+      } else {
+        processImageWithAI(file, geminiApiKey);
+      }
+      return;
+    }
 
     Papa.parse(file, {
       header: true,
@@ -143,8 +281,17 @@ export default function AdminDashboard({
   };
 
   return (
-    <div className="space-y-6" id="admin-dashboard-root">
+    <div className="space-y-6 relative" id="admin-dashboard-root">
       
+      {/* AI Loading Overlay */}
+      {isAILoading && (
+        <div className="absolute inset-0 z-50 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center rounded-3xl">
+          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <h3 className="text-xl font-bold text-slate-800">AI is analyzing your timetable...</h3>
+          <p className="text-slate-500 font-medium">This usually takes about 5-10 seconds.</p>
+        </div>
+      )}
+
       {/* Tab Navigation */}
       <div className="flex border-b border-slate-200 gap-6">
         <button
@@ -201,7 +348,7 @@ export default function AdminDashboard({
             <div className="flex flex-wrap items-center gap-2">
               <input 
                 type="file" 
-                accept=".csv" 
+                accept=".csv,.png,.jpg,.jpeg" 
                 ref={fileInputRef} 
                 onChange={handleFileUpload} 
                 className="hidden" 
@@ -482,6 +629,66 @@ export default function AdminDashboard({
             </div>
           )}
         </>
+      )}
+
+      {/* API Key Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-6 relative animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => {
+                setShowApiKeyModal(false);
+                setPendingImageFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-indigo-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800">Gemini API Key Required</h3>
+            </div>
+            
+            <p className="text-sm text-slate-600 leading-relaxed">
+              To analyze images of your timetable, we use Google's Gemini Vision AI. Since this is a client-side app, you need to provide your own free Gemini API Key. It will be stored securely in your browser's local storage.
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700">API Key</label>
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                onClick={() => {
+                  setShowApiKeyModal(false);
+                  setPendingImageFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveApiKey}
+                disabled={!apiKeyInput.trim()}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                Save & Continue
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
