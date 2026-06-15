@@ -53,7 +53,10 @@ export default function AdminDashboard({
   const [isAILoading, setIsAILoading] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
-  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('geminiApiKey') || '');
+  
+  // Read from .env first, then fallback to localStorage
+  const envApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+  const [geminiApiKey, setGeminiApiKey] = useState(() => envApiKey || localStorage.getItem('geminiApiKey') || '');
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
 
   const formatDateLocal = (date: Date) => {
@@ -188,14 +191,17 @@ export default function AdminDashboard({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const isImage = file.type.startsWith('image/') || /\.(png|jpe?g)$/i.test(file.name);
+    const isVisionFile = file.type.startsWith('image/') || file.type === 'application/pdf' || /\.(png|jpe?g|pdf)$/i.test(file.name);
 
-    if (isImage) {
-      if (!geminiApiKey) {
+    if (isVisionFile) {
+      // Use .env key if present, otherwise check state
+      const currentKey = import.meta.env.VITE_GEMINI_API_KEY || geminiApiKey;
+      
+      if (!currentKey) {
         setPendingImageFile(file);
         setShowApiKeyModal(true);
       } else {
-        processImageWithAI(file, geminiApiKey);
+        processImageWithAI(file, currentKey);
       }
       return;
     }
@@ -355,7 +361,7 @@ export default function AdminDashboard({
             <div className="flex flex-wrap items-center gap-2">
               <input 
                 type="file" 
-                accept=".csv,.png,.jpg,.jpeg" 
+                accept=".csv,.png,.jpg,.jpeg,.pdf" 
                 ref={fileInputRef} 
                 onChange={handleFileUpload} 
                 className="hidden" 
