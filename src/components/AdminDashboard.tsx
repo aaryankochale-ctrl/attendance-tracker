@@ -55,7 +55,7 @@ export default function AdminDashboard({
   const [apiKeyInput, setApiKeyInput] = useState('');
   
   // Read from .env first, then fallback to localStorage
-  const envApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+  const envApiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || '';
   const [geminiApiKey, setGeminiApiKey] = useState(() => envApiKey || localStorage.getItem('geminiApiKey') || '');
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
 
@@ -106,7 +106,7 @@ export default function AdminDashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-1.5-pro',
         contents: [
           {
             role: 'user',
@@ -195,7 +195,7 @@ export default function AdminDashboard({
 
     if (isVisionFile) {
       // Use .env key if present, otherwise check state
-      const currentKey = import.meta.env.VITE_GEMINI_API_KEY || geminiApiKey;
+      const currentKey = (import.meta as any).env.VITE_GEMINI_API_KEY || geminiApiKey;
       
       if (!currentKey) {
         setPendingImageFile(file);
