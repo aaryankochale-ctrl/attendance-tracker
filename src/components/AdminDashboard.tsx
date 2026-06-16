@@ -114,20 +114,27 @@ export default function AdminDashboard({
         const modelsData = await modelsRes.json();
         
         let validModels = [
-          'gemini-2.5-flash',
           'gemini-2.0-flash',
           'gemini-1.5-flash',
-          'gemini-1.5-pro'
+          'gemini-1.5-pro',
+          'gemini-pro-vision'
         ];
 
         if (modelsData && modelsData.models) {
-          validModels = modelsData.models
+          const allAvailable = modelsData.models
             .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
             .map((m: any) => m.name.replace('models/', ''));
-          console.log('Dynamically found valid models for your API key:', validModels);
+            
+          // Intersect our safe list with the ones Google says are available
+          const filteredModels = validModels.filter(m => allAvailable.includes(m));
           
-          // Sort to prioritize newer models (flash models are generally faster for this)
-          validModels.sort((a, b) => b.localeCompare(a)); 
+          if (filteredModels.length > 0) {
+            validModels = filteredModels;
+          } else {
+            // Fallback: pick the first 3 that start with 'gemini-' just in case
+            validModels = allAvailable.filter((m: string) => m.startsWith('gemini-')).slice(0, 3);
+          }
+          console.log('Filtered safe models for your API key:', validModels);
         }
 
         for (const modelName of validModels) {
@@ -162,6 +169,9 @@ export default function AdminDashboard({
       }
 
       if (!response) {
+        if (lastError?.message?.includes('429') || lastError?.message?.toLowerCase().includes('quota')) {
+          throw new Error(`Your Google API Key has exceeded its free tier quota (Rate Limit). Please wait a few minutes or check your Google Cloud billing settings.`);
+        }
         throw new Error(`All AI models failed or are overloaded. Last error: ${lastError?.message}`);
       }
 
