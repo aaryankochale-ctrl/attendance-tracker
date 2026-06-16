@@ -27,13 +27,6 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
   const [scheduleDays, setScheduleDays] = useState<string[]>([]);
   const [lectureDates, setLectureDates] = useState<string[]>([]);
   const [newDateStr, setNewDateStr] = useState('');
-  
-  // Generator State
-  const [generatorStart, setGeneratorStart] = useState('');
-  const [generatorEnd, setGeneratorEnd] = useState('');
-  const [generatorHolidays, setGeneratorHolidays] = useState<string[]>([]);
-  const [newHolidayStr, setNewHolidayStr] = useState('');
-  
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Synchronize state when the editing target changes or modal opens
@@ -57,12 +50,8 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       setSelectedColor(SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)]);
       setScheduleDays(['Mon', 'Wed']);
       setLectureDates([]);
-      setGeneratorStart('');
-      setGeneratorEnd('');
-      setGeneratorHolidays([]);
     }
     setNewDateStr('');
-    setNewHolidayStr('');
     setErrors({});
   }, [editingSubject, isOpen]);
 
@@ -82,41 +71,48 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
     return `${y}-${m}-${d}`;
   };
 
-  const handleGenerateSchedule = () => {
-    if (!generatorStart || !generatorEnd) {
-      alert('Please specify both a start and end date for the semester.');
-      return;
-    }
+  const handleAddWeeks = (weeks: number) => {
     if (scheduleDays.length === 0) {
       alert('Please select at least one Lecture Session Day above.');
       return;
     }
 
-    const start = new Date(generatorStart + 'T00:00:00');
-    const end = new Date(generatorEnd + 'T00:00:00');
-    if (start > end) {
-      alert('Start date must be before end date.');
-      return;
-    }
-
-    const generated: string[] = [];
     const dayMap: Record<string, number> = {
       'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
     };
-    const targetDays = scheduleDays.map(d => dayMap[d]);
+    const targetDays = scheduleDays.map(d => dayMap[d]).filter(d => d !== undefined);
 
-    const current = new Date(start);
+    let startDate = new Date();
+    if (lectureDates.length > 0) {
+      // Start the day after the latest configured date
+      const sortedDates = [...lectureDates].sort();
+      startDate = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00');
+      startDate.setDate(startDate.getDate() + 1);
+    } else {
+      // If no dates exist, start from today but zero out the time
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    const newDates: string[] = [];
+    const current = new Date(startDate);
+    const end = new Date(startDate);
+    end.setDate(end.getDate() + (weeks * 7) - 1);
+
     while (current <= end) {
       if (targetDays.includes(current.getDay())) {
         const dateStr = formatDateLocal(current);
-        if (!generatorHolidays.includes(dateStr)) {
-          generated.push(dateStr);
+        if (!lectureDates.includes(dateStr) && !newDates.includes(dateStr)) {
+          newDates.push(dateStr);
         }
       }
       current.setDate(current.getDate() + 1);
     }
 
-    setLectureDates(generated.sort());
+    if (newDates.length > 0) {
+      setLectureDates([...lectureDates, ...newDates].sort());
+    } else {
+      alert(`No new valid lecture days found for the next ${weeks} weeks.`);
+    }
   };
 
   const validate = (): boolean => {
@@ -395,87 +391,36 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
             </p>
           </div>
 
-          {/* Smart Schedule Generator */}
-          <div className="bg-slate-50 p-4.5 rounded-xl border border-slate-200 mt-6 space-y-4 shadow-4xs">
+          {/* Quick Add Buttons */}
+          <div className="bg-indigo-50/50 p-4.5 rounded-xl border border-indigo-100 mt-6 space-y-3 shadow-4xs">
             <div>
               <h4 className="text-sm font-bold text-slate-800 flex items-center space-x-1.5 mb-1">
                 <Sparkles className="h-4.5 w-4.5 text-indigo-500" /> 
-                <span>Smart Schedule Generator</span>
+                <span>Quick Add Dates</span>
               </h4>
               <p className="text-[11.5px] text-slate-500 font-medium">
-                Automatically create all specific lecture dates based on your selected Session Days and term dates, automatically skipping any holidays.
+                Instantly append lectures for the coming weeks based on your selected Session Days.
               </p>
             </div>
-             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Term Start</label>
-                <input 
-                  type="date" 
-                  value={generatorStart} 
-                  onChange={e => setGeneratorStart(e.target.value)} 
-                  className="w-full px-3 py-2 rounded-lg text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-indigo-100 text-sm" 
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Term End</label>
-                <input 
-                  type="date" 
-                  value={generatorEnd} 
-                  onChange={e => setGeneratorEnd(e.target.value)} 
-                  className="w-full px-3 py-2 rounded-lg text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-indigo-100 text-sm" 
-                />
-              </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                type="button" 
+                onClick={() => handleAddWeeks(1)} 
+                className="py-2.5 bg-white text-indigo-700 hover:bg-indigo-50 font-bold text-sm rounded-lg transition-all border border-indigo-200 shadow-sm flex items-center justify-center space-x-1.5 active:scale-[0.98]"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add 1 Week</span>
+              </button>
+              <button 
+                type="button" 
+                onClick={() => handleAddWeeks(4)} 
+                className="py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold text-sm rounded-lg transition-all shadow-sm flex items-center justify-center space-x-1.5 active:scale-[0.98]"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add 4 Weeks</span>
+              </button>
             </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Holidays / Days Off to Skip</label>
-              <div className="flex gap-2 mb-2">
-                <input 
-                  type="date" 
-                  value={newHolidayStr} 
-                  onChange={e => setNewHolidayStr(e.target.value)} 
-                  className="flex-1 px-3 py-2 rounded-lg text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-indigo-100 text-sm" 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => { 
-                    if(newHolidayStr && !generatorHolidays.includes(newHolidayStr)) { 
-                      setGeneratorHolidays([...generatorHolidays, newHolidayStr]); 
-                      setNewHolidayStr(''); 
-                    } 
-                  }} 
-                  className="px-4 py-2 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-300 transition-colors"
-                >
-                  Add Holiday
-                </button>
-              </div>
-              
-              {generatorHolidays.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {generatorHolidays.map(h => (
-                    <span key={h} className="inline-flex items-center space-x-1 bg-white border border-rose-200 px-2 py-1 rounded-md text-[10px] font-bold text-rose-700 shadow-sm">
-                      <span>{h}</span>
-                      <button
-                        type="button"
-                        onClick={() => setGeneratorHolidays(generatorHolidays.filter(d => d !== h))}
-                        className="text-rose-400 hover:text-rose-600 p-0.5 rounded"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button 
-              type="button" 
-              onClick={handleGenerateSchedule} 
-              className="w-full py-2.5 mt-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold text-sm rounded-lg transition-colors border border-indigo-200"
-            >
-              Generate Dates
-            </button>
           </div>
 
           {/* Actions Footer */}
