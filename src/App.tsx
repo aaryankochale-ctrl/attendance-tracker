@@ -217,6 +217,49 @@ export default function App() {
     await syncAndSave(updatedSubjects, updatedAttendance);
   };
 
+  // Add 1 Week to All Subjects
+  const handleAddWeekToAll = async () => {
+    let updatedSubjects = [...subjects];
+    let updatedAttendance = { ...attendance };
+
+    updatedSubjects = updatedSubjects.map(sub => {
+      const addedLectures = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
+      const newTotal = Math.min(100, sub.totalLectures + addedLectures);
+      return { ...sub, totalLectures: newTotal };
+    });
+
+    updatedSubjects.forEach(sub => {
+      const currentRecords = updatedAttendance[sub.id] || [];
+      if (currentRecords.length < sub.totalLectures) {
+        const padding = Array(sub.totalLectures - currentRecords.length).fill('unmarked');
+        updatedAttendance[sub.id] = [...currentRecords, ...padding];
+      }
+    });
+
+    await syncAndSave(updatedSubjects, updatedAttendance);
+  };
+
+  // Remove 1 Week from All Subjects
+  const handleRemoveWeekFromAll = async () => {
+    let updatedSubjects = [...subjects];
+    let updatedAttendance = { ...attendance };
+
+    updatedSubjects = updatedSubjects.map(sub => {
+      const removedLectures = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
+      const newTotal = Math.max(1, sub.totalLectures - removedLectures);
+      return { ...sub, totalLectures: newTotal };
+    });
+
+    updatedSubjects.forEach(sub => {
+      const currentRecords = updatedAttendance[sub.id] || [];
+      if (currentRecords.length > sub.totalLectures) {
+        updatedAttendance[sub.id] = currentRecords.slice(0, sub.totalLectures);
+      }
+    });
+
+    await syncAndSave(updatedSubjects, updatedAttendance);
+  };
+
   // Delete subject
   const handleDeleteSubject = async (id: string) => {
     const updatedSubjects = subjects.filter(s => s.id !== id);
@@ -429,6 +472,8 @@ export default function App() {
               onDeleteSubject={handleDeleteSubject}
               onUpdateLecturesCount={handleUpdateLecturesCount}
               onBulkAddSubjects={handleBulkAddSubjects}
+              onAddWeekToAll={handleAddWeekToAll}
+              onRemoveWeekFromAll={handleRemoveWeekFromAll}
             />
           </div>
         )}

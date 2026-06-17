@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Sparkles, BookOpen, Check } from 'lucide-react';
+import { X, Plus, BookOpen, Check } from 'lucide-react';
 import { Subject } from '../types';
 import { SUBJECT_COLORS } from '../data';
 
@@ -20,13 +20,11 @@ const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubject }: SubjectFormModalProps) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [totalLectures, setTotalLectures] = useState<number>(5);
+  const [totalWeeks, setTotalWeeks] = useState<number>(4);
   const [instructor, setInstructor] = useState('');
   const [room, setRoom] = useState('');
   const [selectedColor, setSelectedColor] = useState(SUBJECT_COLORS[0]);
   const [scheduleDays, setScheduleDays] = useState<string[]>([]);
-  const [lectureDates, setLectureDates] = useState<string[]>([]);
-  const [newDateStr, setNewDateStr] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Synchronize state when the editing target changes or modal opens
@@ -34,95 +32,49 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
     if (editingSubject) {
       setName(editingSubject.name);
       setCode(editingSubject.code);
-      setTotalLectures(editingSubject.totalLectures);
+      const daysCount = Math.max(1, (editingSubject.scheduleDays?.length || 1));
+      setTotalWeeks(Math.ceil(editingSubject.totalLectures / daysCount));
       setInstructor(editingSubject.instructor || '');
       setRoom(editingSubject.room || '');
       setSelectedColor(editingSubject.color || SUBJECT_COLORS[0]);
       setScheduleDays(editingSubject.scheduleDays || []);
-      setLectureDates(editingSubject.lectureDates || []);
     } else {
       // Set pristine default state
       setName('');
       setCode('');
-      setTotalLectures(5);
+      setTotalWeeks(4);
       setInstructor('');
       setRoom('');
       setSelectedColor(SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)]);
-      setScheduleDays(['Mon', 'Wed']);
-      setLectureDates([]);
+      setScheduleDays(['Mon', 'Wed', 'Fri']);
     }
-    setNewDateStr('');
     setErrors({});
   }, [editingSubject, isOpen]);
 
   if (!isOpen) return null;
 
-  // Toggle day selections
-  const toggleDay = (day: string) => {
-    setScheduleDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-  };
-
-  const formatDateLocal = (date: Date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-
-  const handleAddWeeks = (weeks: number) => {
-    if (scheduleDays.length === 0) {
-      alert('Please select at least one Lecture Session Day above.');
-      return;
-    }
-
-    const dayMap: Record<string, number> = {
-      'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-    };
-    const targetDays = scheduleDays.map(d => dayMap[d]).filter(d => d !== undefined);
-
-    let startDate = new Date();
-    if (lectureDates.length > 0) {
-      // Start the day after the latest configured date
-      const sortedDates = [...lectureDates].sort();
-      startDate = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00');
-      startDate.setDate(startDate.getDate() + 1);
-    } else {
-      // If no dates exist, start from today but zero out the time
-      startDate.setHours(0, 0, 0, 0);
-    }
-
-    const newDates: string[] = [];
-    const current = new Date(startDate);
-    const end = new Date(startDate);
-    end.setDate(end.getDate() + (weeks * 7) - 1);
-
-    while (current <= end) {
-      if (targetDays.includes(current.getDay())) {
-        const dateStr = formatDateLocal(current);
-        if (!lectureDates.includes(dateStr) && !newDates.includes(dateStr)) {
-          newDates.push(dateStr);
-        }
+  // Add or remove a day from the array
+  const changeDayCount = (day: string, delta: number) => {
+    setScheduleDays((prev) => {
+      const newDays = [...prev];
+      if (delta > 0) {
+        newDays.push(day);
+      } else if (delta < 0) {
+        const idx = newDays.indexOf(day);
+        if (idx !== -1) newDays.splice(idx, 1);
       }
-      current.setDate(current.getDate() + 1);
-    }
-
-    if (newDates.length > 0) {
-      setLectureDates([...lectureDates, ...newDates].sort());
-    } else {
-      alert(`No new valid lecture days found for the next ${weeks} weeks.`);
-    }
+      
+      // Keep days in chronological order
+      return newDays.sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b));
+    });
   };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = 'Subject name is required';
     if (!code.trim()) newErrors.code = 'Subject code is required';
-    if (lectureDates.length === 0) {
-      if (totalLectures <= 0 || totalLectures > 40) {
-        newErrors.totalLectures = 'Lectures must be between 1 and 40, or add specific dates.';
-      }
+    if (totalWeeks <= 0 || totalWeeks > 52) {
+      newErrors.totalWeeks = 'Weeks must be between 1 and 52.';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -136,11 +88,10 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       id: editingSubject?.id,
       name: name.trim(),
       code: code.trim().toUpperCase(),
-      totalLectures: lectureDates.length > 0 ? lectureDates.length : totalLectures,
-      lectureDates: lectureDates.length > 0 ? [...lectureDates].sort() : undefined,
+      totalLectures: totalWeeks * Math.max(1, scheduleDays.length),
       instructor: instructor.trim() || undefined,
       room: room.trim() || undefined,
-      scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined,
+      scheduleDays: scheduleDays.length > 0 ? [...scheduleDays].sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b)) : undefined,
       color: selectedColor,
     });
     onClose();
@@ -162,7 +113,7 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
               <BookOpen className="h-4.5 w-4.5" />
             </div>
             <h3 className="font-sans font-bold text-slate-800 text-lg">
-              {editingSubject ? 'Edit Subject details' : 'Add new Subject'}
+              {editingSubject ? 'Edit Subject Details' : 'Add New Subject'}
             </h3>
           </div>
           <button 
@@ -228,78 +179,28 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
               )}
             </div>
 
-            {/* Specific Lecture Dates (Overrides Total Lectures) */}
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider" title="Specify precise dates for lectures">
-                Lecture Dates
+            {/* Total Weeks Count */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider" title="Total weeks scheduled in this term">
+                Total Weeks *
               </label>
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="date"
-                  value={newDateStr}
-                  onChange={(e) => setNewDateStr(e.target.value)}
-                  className="flex-1 px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border border-slate-200 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-505 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (newDateStr && !lectureDates.includes(newDateStr)) {
-                      setLectureDates([...lectureDates, newDateStr].sort());
-                      setNewDateStr('');
-                    }
-                  }}
-                  className="px-4 py-2 bg-slate-800 text-white font-bold text-sm rounded-xl hover:bg-slate-700 transition-colors"
-                >
-                  Add Date
-                </button>
-              </div>
-              
-              {lectureDates.length > 0 ? (
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl">
-                  {lectureDates.map((date) => (
-                    <span key={date} className="inline-flex items-center space-x-1 bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
-                      <span>{date}</span>
-                      <button
-                        type="button"
-                        onClick={() => setLectureDates(lectureDates.filter(d => d !== date))}
-                        className="text-slate-400 hover:text-rose-500 p-0.5 rounded-md hover:bg-rose-50"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-xs text-slate-400 font-medium">
-                  If no dates are provided, we will use a raw lecture count instead.
-                </div>
+              <input
+                type="number"
+                min={1}
+                max={52}
+                value={totalWeeks}
+                onChange={(e) => setTotalWeeks(parseInt(e.target.value) || 0)}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border transition-all text-sm focus:outline-none focus:bg-white focus:ring-2 ${
+                  errors.totalWeeks 
+                    ? 'border-rose-450 focus:ring-rose-105' 
+                    : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-505'
+                }`}
+                id="input-total-weeks"
+              />
+              {errors.totalWeeks && (
+                <p className="mt-1 text-xs text-rose-500 font-medium">{errors.totalWeeks}</p>
               )}
             </div>
-
-            {/* Total Scheduled Lectures Fallback */}
-            {lectureDates.length === 0 && (
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider" title="Total lecture occurrences scheduled in this term">
-                  Total Lectures Count *
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={40}
-                  value={totalLectures}
-                  onChange={(e) => setTotalLectures(parseInt(e.target.value) || 0)}
-                  className={`w-full px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border transition-all text-sm focus:outline-none focus:bg-white focus:ring-2 ${
-                    errors.totalLectures 
-                      ? 'border-rose-450 focus:ring-rose-105' 
-                      : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-505'
-                  }`}
-                  id="input-total-lectures"
-                />
-                {errors.totalLectures && (
-                  <p className="mt-1 text-xs text-rose-500 font-medium">{errors.totalLectures}</p>
-                )}
-              </div>
-            )}
 
             {/* Instructor */}
             <div>
@@ -364,63 +265,43 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
           {/* Weekly Days Picker */}
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
-              Lecture Session Days
+              Lectures per Day
             </label>
-            <div className="flex flex-wrap gap-2" id="day-selector-group">
+            <div className="flex flex-wrap gap-3" id="day-selector-group">
               {WEEK_DAYS.map((day) => {
-                const active = scheduleDays.includes(day);
+                const count = scheduleDays.filter(d => d === day).length;
+                const active = count > 0;
                 return (
-                  <button
+                  <div
                     key={day}
-                    type="button"
-                    onClick={() => toggleDay(day)}
-                    className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all border ${
+                    className={`flex items-center space-x-2 px-2.5 py-1.5 rounded-xl border transition-all ${
                       active
-                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
-                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border-slate-200'
+                        ? 'bg-indigo-50 border-indigo-200 shadow-sm'
+                        : 'bg-slate-50 border-slate-200'
                     }`}
-                    id={`day-chip-${day}`}
                   >
-                    {day}
-                  </button>
+                    <span className={`text-xs font-bold w-7 text-center ${active ? 'text-indigo-700' : 'text-slate-500'}`}>{day}</span>
+                    <div className="flex items-center space-x-1.5 bg-white rounded-lg border border-slate-200 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => changeDayCount(day, -1)}
+                        disabled={count === 0}
+                        className="h-6 w-6 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center font-bold text-lg"
+                      >−</button>
+                      <span className="text-xs font-black text-slate-700 w-3 text-center">{count}</span>
+                      <button
+                        type="button"
+                        onClick={() => changeDayCount(day, 1)}
+                        className="h-6 w-6 rounded text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 flex items-center justify-center font-bold text-lg"
+                      >+</button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
-            <p className="mt-1.5 text-[11px] text-slate-400 font-medium">
-              Highlight which days this class takes place each week.
+            <p className="mt-2 text-[11px] text-slate-400 font-medium">
+              We will use this to group your lectures into easy-to-read Weekly blocks. (e.g. 2 lectures on Mon)
             </p>
-          </div>
-
-          {/* Quick Add Buttons */}
-          <div className="bg-indigo-50/50 p-4.5 rounded-xl border border-indigo-100 mt-6 space-y-3 shadow-4xs">
-            <div>
-              <h4 className="text-sm font-bold text-slate-800 flex items-center space-x-1.5 mb-1">
-                <Sparkles className="h-4.5 w-4.5 text-indigo-500" /> 
-                <span>Quick Add Dates</span>
-              </h4>
-              <p className="text-[11.5px] text-slate-500 font-medium">
-                Instantly append lectures for the coming weeks based on your selected Session Days.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                type="button" 
-                onClick={() => handleAddWeeks(1)} 
-                className="py-2.5 bg-white text-indigo-700 hover:bg-indigo-50 font-bold text-sm rounded-lg transition-all border border-indigo-200 shadow-sm flex items-center justify-center space-x-1.5 active:scale-[0.98]"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Add 1 Week</span>
-              </button>
-              <button 
-                type="button" 
-                onClick={() => handleAddWeeks(4)} 
-                className="py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold text-sm rounded-lg transition-all shadow-sm flex items-center justify-center space-x-1.5 active:scale-[0.98]"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Add 4 Weeks</span>
-              </button>
-            </div>
           </div>
 
           {/* Actions Footer */}
@@ -448,4 +329,3 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
     </div>
   );
 }
-

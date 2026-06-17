@@ -10,7 +10,6 @@ export interface Subject {
   name: string;
   code: string;
   totalLectures: number;
-  lectureDates?: string[]; // ISO date strings
   instructor?: string;
   room?: string;
   scheduleDays?: string[];

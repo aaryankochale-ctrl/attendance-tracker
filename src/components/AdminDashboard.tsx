@@ -22,7 +22,11 @@ interface AdminDashboardProps {
   onDeleteSubject: (id: string) => void;
   onUpdateLecturesCount: (id: string, count: number) => void;
   onBulkAddSubjects: (subjects: Subject[]) => void;
+  onAddWeekToAll: () => void;
+  onRemoveWeekFromAll: () => void;
 }
+
+const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function AdminDashboard({
   subjects,
@@ -33,6 +37,8 @@ export default function AdminDashboard({
   onDeleteSubject,
   onUpdateLecturesCount,
   onBulkAddSubjects,
+  onAddWeekToAll,
+  onRemoveWeekFromAll,
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'subjects' | 'students'>('subjects');
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,7 +50,7 @@ export default function AdminDashboard({
     (sub.instructor || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredProfiles = allProfiles.filter(p => 
+  const filteredProfiles = allProfiles.filter(p =>
     p.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -53,7 +59,7 @@ export default function AdminDashboard({
   const [isAILoading, setIsAILoading] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
-  
+
   // Read from .env first, then fallback to localStorage
   const envApiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || '';
   const [geminiApiKey, setGeminiApiKey] = useState(() => envApiKey || localStorage.getItem('geminiApiKey') || '');
@@ -80,7 +86,7 @@ export default function AdminDashboard({
     setIsAILoading(true);
     try {
       const ai = new GoogleGenAI({ apiKey });
-      
+
       const base64Str = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -112,7 +118,7 @@ export default function AdminDashboard({
         // Dynamically fetch exactly which models are allowed for this specific API key
         const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
         const modelsData = await modelsRes.json();
-        
+
         let validModels = [
           'gemini-2.0-flash',
           'gemini-1.5-flash',
@@ -124,10 +130,10 @@ export default function AdminDashboard({
           const allAvailable = modelsData.models
             .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
             .map((m: any) => m.name.replace('models/', ''));
-            
+
           // Intersect our safe list with the ones Google says are available
           const filteredModels = validModels.filter(m => allAvailable.includes(m));
-          
+
           if (filteredModels.length > 0) {
             validModels = filteredModels;
           } else {
@@ -182,25 +188,25 @@ export default function AdminDashboard({
       }
 
       const results = JSON.parse(cleanJson);
-      
+
       const newSubjects: Subject[] = [];
       results.forEach((row: any) => {
         if (!row.name || !row.code) return;
-        
+
         const scheduleDays = row.days ? row.days.split(',').map((d: string) => d.trim()).filter(Boolean) : [];
         const holidays = row.holidays ? row.holidays.split(',').map((d: string) => d.trim()).filter(Boolean) : [];
-        
+
         let lectureDates: string[] = [];
-        
+
         if (row.start_date && row.end_date && scheduleDays.length > 0) {
           const start = new Date(row.start_date + 'T00:00:00');
           const end = new Date(row.end_date + 'T00:00:00');
-          
+
           const dayMap: Record<string, number> = {
             'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
           };
           const targetDays = scheduleDays.map((d: string) => dayMap[d]).filter((d: number | undefined) => d !== undefined);
-          
+
           const current = new Date(start);
           while (current <= end) {
             if (targetDays.includes(current.getDay())) {
@@ -212,9 +218,9 @@ export default function AdminDashboard({
             current.setDate(current.getDate() + 1);
           }
         }
-        
+
         const color = SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)];
-        
+
         newSubjects.push({
           id: `subj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: row.name,
@@ -222,7 +228,6 @@ export default function AdminDashboard({
           instructor: row.instructor || undefined,
           room: row.room || undefined,
           scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined,
-          lectureDates: lectureDates.length > 0 ? lectureDates.sort() : undefined,
           totalLectures: lectureDates.length > 0 ? lectureDates.length : 5,
           color
         });
@@ -253,7 +258,7 @@ export default function AdminDashboard({
     if (isVisionFile) {
       // Use .env key if present, otherwise check state
       const currentKey = (import.meta as any).env.VITE_GEMINI_API_KEY || geminiApiKey;
-      
+
       if (!currentKey) {
         setPendingImageFile(file);
         setShowApiKeyModal(true);
@@ -266,72 +271,71 @@ export default function AdminDashboard({
     if (file.type === 'text/csv' || /\.csv$/i.test(file.name)) {
       Papa.parse(file, {
         header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const newSubjects: Subject[] = [];
-        
-        results.data.forEach((row: any) => {
-          if (!row.name || !row.code) return; // Skip invalid rows
-          
-          const scheduleDays = row.days ? row.days.split(';').map((d: string) => d.trim()).filter(Boolean) : [];
-          const holidays = row.holidays ? row.holidays.split(';').map((d: string) => d.trim()).filter(Boolean) : [];
-          
-          let lectureDates: string[] = [];
-          
-          // Generate schedule if start and end dates are provided
-          if (row.start_date && row.end_date && scheduleDays.length > 0) {
-            const start = new Date(row.start_date + 'T00:00:00');
-            const end = new Date(row.end_date + 'T00:00:00');
-            
-            const dayMap: Record<string, number> = {
-              'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-            };
-            const targetDays = scheduleDays.map((d: string) => dayMap[d]).filter((d: number | undefined) => d !== undefined);
-            
-            const current = new Date(start);
-            while (current <= end) {
-              if (targetDays.includes(current.getDay())) {
-                const dateStr = formatDateLocal(current);
-                if (!holidays.includes(dateStr)) {
-                  lectureDates.push(dateStr);
+        skipEmptyLines: true,
+        complete: (results) => {
+          const newSubjects: Subject[] = [];
+
+          results.data.forEach((row: any) => {
+            if (!row.name || !row.code) return; // Skip invalid rows
+
+            const scheduleDays = row.days ? row.days.split(';').map((d: string) => d.trim()).filter(Boolean) : [];
+            const holidays = row.holidays ? row.holidays.split(';').map((d: string) => d.trim()).filter(Boolean) : [];
+
+            let lectureDates: string[] = [];
+
+            // Generate schedule if start and end dates are provided
+            if (row.start_date && row.end_date && scheduleDays.length > 0) {
+              const start = new Date(row.start_date + 'T00:00:00');
+              const end = new Date(row.end_date + 'T00:00:00');
+
+              const dayMap: Record<string, number> = {
+                'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+              };
+              const targetDays = scheduleDays.map((d: string) => dayMap[d]).filter((d: number | undefined) => d !== undefined);
+
+              const current = new Date(start);
+              while (current <= end) {
+                if (targetDays.includes(current.getDay())) {
+                  const dateStr = formatDateLocal(current);
+                  if (!holidays.includes(dateStr)) {
+                    lectureDates.push(dateStr);
+                  }
                 }
+                current.setDate(current.getDate() + 1);
               }
-              current.setDate(current.getDate() + 1);
             }
-          }
-          
-          const color = SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)];
-          
-          newSubjects.push({
-            id: `subj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: row.name,
-            code: row.code,
-            instructor: row.instructor || undefined,
-            room: row.room || undefined,
-            scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined,
-            lectureDates: lectureDates.length > 0 ? lectureDates.sort() : undefined,
-            totalLectures: lectureDates.length > 0 ? lectureDates.length : 5,
-            color
+
+            const color = SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)];
+
+            newSubjects.push({
+              id: `subj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              name: row.name,
+              code: row.code,
+              instructor: row.instructor || undefined,
+              room: row.room || undefined,
+              scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined,
+              totalLectures: lectureDates.length > 0 ? lectureDates.length : 5,
+              color
+            });
           });
-        });
 
-        if (newSubjects.length > 0) {
-          onBulkAddSubjects(newSubjects);
-          alert(`Successfully imported ${newSubjects.length} subjects from timetable!`);
-        } else {
-          alert('No valid subjects found in the CSV. Please check the template format.');
-        }
+          if (newSubjects.length > 0) {
+            onBulkAddSubjects(newSubjects);
+            alert(`Successfully imported ${newSubjects.length} subjects from timetable!`);
+          } else {
+            alert('No valid subjects found in the CSV. Please check the template format.');
+          }
 
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+          // Reset file input
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        },
+        error: (error: any) => {
+          alert(`Error parsing CSV: ${error.message}`);
         }
-      },
-      error: (error: any) => {
-        alert(`Error parsing CSV: ${error.message}`);
-      }
-    });
-    return;
+      });
+      return;
     }
 
     alert('Unsupported file format. Please upload a .csv spreadsheet or an image (.png, .jpg).');
@@ -352,7 +356,7 @@ export default function AdminDashboard({
 
   return (
     <div className="space-y-6 relative" id="admin-dashboard-root">
-      
+
       {/* AI Loading Overlay */}
       {isAILoading && (
         <div className="absolute inset-0 z-50 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center rounded-3xl">
@@ -370,11 +374,10 @@ export default function AdminDashboard({
             setSearchTerm('');
             setSelectedStudentId(null);
           }}
-          className={`pb-3 font-bold text-sm transition-colors border-b-2 ${
-            activeTab === 'subjects' 
-              ? 'border-indigo-600 text-indigo-600' 
+          className={`pb-3 font-bold text-sm transition-colors border-b-2 ${activeTab === 'subjects'
+              ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <div className="flex items-center space-x-2">
             <BookOpen className="h-4 w-4" />
@@ -386,11 +389,10 @@ export default function AdminDashboard({
             setActiveTab('students');
             setSearchTerm('');
           }}
-          className={`pb-3 font-bold text-sm transition-colors border-b-2 ${
-            activeTab === 'students' 
-              ? 'border-indigo-600 text-indigo-600' 
+          className={`pb-3 font-bold text-sm transition-colors border-b-2 ${activeTab === 'students'
+              ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <div className="flex items-center space-x-2">
             <Users className="h-4 w-4" />
@@ -416,12 +418,12 @@ export default function AdminDashboard({
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <input 
-                type="file" 
-                accept=".csv,.png,.jpg,.jpeg,.pdf" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
-                className="hidden" 
+              <input
+                type="file"
+                accept=".csv,.png,.jpg,.jpeg,.pdf"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -429,6 +431,19 @@ export default function AdminDashboard({
               >
                 <Upload className="h-4 w-4 text-slate-500" />
                 <span>Upload Timetable</span>
+              </button>
+              <button
+                onClick={onRemoveWeekFromAll}
+                className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-bold text-sm hover:bg-rose-100 transition-all shadow-sm active:scale-[0.98]"
+              >
+                <span>Remove Week</span>
+              </button>
+              <button
+                onClick={onAddWeekToAll}
+                className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-sm hover:bg-indigo-100 transition-all shadow-sm active:scale-[0.98]"
+              >
+                <Plus className="h-4.5 w-4.5" />
+                <span>Add Week</span>
               </button>
               <button
                 onClick={onAddSubject}
@@ -457,13 +472,13 @@ export default function AdminDashboard({
               </div>
               <h3 className="font-sans font-bold text-slate-800 text-base">No subjects match</h3>
               <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                {searchTerm 
+                {searchTerm
                   ? `We couldn't find any subject matching "${searchTerm}". Try refinement.`
                   : 'Start by building a subject to organize student rosters, schedule days, and compute analytics.'
                 }
               </p>
               {searchTerm && (
-                <button 
+                <button
                   onClick={() => setSearchTerm('')}
                   className="text-xs font-bold text-indigo-600 hover:underline"
                 >
@@ -526,9 +541,14 @@ export default function AdminDashboard({
                           <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
                           <div className="flex flex-wrap gap-1">
                             {sub.scheduleDays && sub.scheduleDays.length > 0 ? (
-                              sub.scheduleDays.map(day => (
+                              Object.entries(
+                                sub.scheduleDays.reduce((acc, day) => {
+                                  acc[day] = (acc[day] || 0) + 1;
+                                  return acc;
+                                }, {} as Record<string, number>)
+                              ).sort((a, b) => WEEK_DAYS.indexOf(a[0]) - WEEK_DAYS.indexOf(b[0])).map(([day, count]) => (
                                 <span key={day} className="text-[10px] font-semibold bg-slate-50 border border-slate-200 px-1.5 py-0.2 rounded-md text-slate-600">
-                                  {day}
+                                  {day} {count > 1 ? `(x${count})` : ''}
                                 </span>
                               ))
                             ) : (
@@ -539,42 +559,44 @@ export default function AdminDashboard({
                       </div>
                     </div>
                     <div className="bg-slate-50/75 border-t border-slate-100 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      {sub.lectureDates && sub.lectureDates.length > 0 ? (
-                        <div className="text-xs w-full flex justify-between items-center">
-                          <div>
-                            <span className="font-bold text-slate-700 block">Specific Dates Configured</span>
-                            <span className="text-slate-400 text-[10px]">{sub.lectureDates.length} total lecture(s) scheduled.</span>
-                          </div>
-                          <button
-                            onClick={() => onEditSubject(sub)}
-                            className="px-3 py-1.5 text-[10px] font-bold bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 shadow-sm transition-all"
-                          >
-                            Manage Dates
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="text-xs">
-                            <span className="font-bold text-slate-700 block">Total Lectures Count</span>
-                            <span className="text-slate-400 text-[10px]">Updates student tracking cells immediately</span>
-                          </div>
-                          <div className="flex items-center space-x-2.5">
-                            <button
-                              onClick={() => onUpdateLecturesCount(sub.id, Math.max(1, sub.totalLectures - 1))}
-                              disabled={sub.totalLectures <= 1}
-                              className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
-                            >–</button>
-                            <span className="font-mono font-bold text-slate-800 text-sm w-8 text-center bg-white p-1 rounded-md border border-slate-200 shadow-3xs">
-                              {sub.totalLectures}
-                            </span>
-                            <button
-                              onClick={() => onUpdateLecturesCount(sub.id, Math.min(40, sub.totalLectures + 1))}
-                              disabled={sub.totalLectures >= 40}
-                              className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
-                            >+</button>
-                          </div>
-                        </>
-                      )}
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-700 block">Total Weeks Count</span>
+                        <span className="text-slate-400 text-[10px]">Updates student tracking cells immediately</span>
+                      </div>
+                      <div className="flex items-center space-x-2.5">
+                        <button
+                          onClick={() => {
+                            const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
+                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
+                            onUpdateLecturesCount(sub.id, Math.max(1, (currentWeeks - 1) * daysCount));
+                          }}
+                          disabled={Math.ceil(sub.totalLectures / Math.max(1, sub.scheduleDays?.length || 1)) <= 1}
+                          className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
+                        >–</button>
+                        <input
+                          type="number"
+                          min={1}
+                          max={52}
+                          value={Math.ceil(sub.totalLectures / Math.max(1, sub.scheduleDays?.length || 1))}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
+                            if (!isNaN(val) && val >= 1 && val <= 52) {
+                              onUpdateLecturesCount(sub.id, val * daysCount);
+                            }
+                          }}
+                          className="font-mono font-bold text-slate-800 text-sm w-12 text-center bg-white p-1 rounded-md border border-slate-200 shadow-3xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 appearance-none m-0"
+                        />
+                        <button
+                          onClick={() => {
+                            const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
+                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
+                            onUpdateLecturesCount(sub.id, Math.min(52 * daysCount, (currentWeeks + 1) * daysCount));
+                          }}
+                          disabled={Math.ceil(sub.totalLectures / Math.max(1, sub.scheduleDays?.length || 1)) >= 52}
+                          className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
+                        >+</button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -595,14 +617,14 @@ export default function AdminDashboard({
         <>
           {selectedStudentId ? (
             <div className="space-y-6">
-              <button 
+              <button
                 onClick={() => setSelectedStudentId(null)}
                 className="text-xs font-bold text-indigo-600 hover:underline flex items-center space-x-1"
               >
                 <ChevronRight className="h-3 w-3 rotate-180" />
                 <span>Back to Roster</span>
               </button>
-              
+
               {(() => {
                 const profile = allProfiles.find(p => p.id === selectedStudentId);
                 const studentAtt = allAttendance[selectedStudentId] || {};
@@ -622,17 +644,17 @@ export default function AdminDashboard({
                         <p className="text-xs text-slate-400">Monitoring Mode - Read Only</p>
                       </div>
                     </div>
-                    
+
                     <StatsOverview stats={statsList} />
-                    
+
                     <div>
                       <h4 className="font-bold text-slate-800 mb-4">Detailed Records</h4>
-                      <StudentDashboard 
+                      <StudentDashboard
                         subjects={subjects}
                         attendance={studentAtt}
-                        onToggleLecture={() => {}}
-                        onBulkMark={() => {}}
-                        onClearSubjectRecords={() => {}}
+                        onToggleLecture={() => { }}
+                        onBulkMark={() => { }}
+                        onClearSubjectRecords={() => { }}
                         readOnly={true}
                       />
                     </div>
@@ -705,7 +727,7 @@ export default function AdminDashboard({
       {showApiKeyModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-6 relative animate-in fade-in zoom-in-95 duration-200">
-            <button 
+            <button
               onClick={() => {
                 setShowApiKeyModal(false);
                 setPendingImageFile(null);
@@ -715,14 +737,14 @@ export default function AdminDashboard({
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
-            
+
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
                 <AlertCircle className="w-5 h-5 text-indigo-600" />
               </div>
               <h3 className="text-xl font-bold text-slate-800">Gemini API Key Required</h3>
             </div>
-            
+
             <p className="text-sm text-slate-600 leading-relaxed">
               To analyze images of your timetable, we use Google's Gemini Vision AI. Since this is a client-side app, you need to provide your own free Gemini API Key. It will be stored securely in your browser's local storage.
             </p>

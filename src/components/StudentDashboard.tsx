@@ -4,9 +4,11 @@
  */
 
 import React, { useState } from 'react';
-import { Search, ToggleLeft, CheckCircle2, XCircle, Clock, RotateCcw, HelpCircle, CheckSquare, Sparkles, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, RotateCcw, Sparkles } from 'lucide-react';
 import { Subject, StudentAttendance, AttendanceStatus } from '../types';
 import { calculateSubjectStats } from '../data';
+
+const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 interface StudentDashboardProps {
   subjects: Subject[];
@@ -16,24 +18,6 @@ interface StudentDashboardProps {
   onClearSubjectRecords: (subjectId: string) => void;
   readOnly?: boolean;
 }
-
-const getWeeksInMonth = (monthStart: Date) => {
-  const weeks: Date[] = [];
-  const firstDay = new Date(monthStart);
-  const day = firstDay.getDay();
-  const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1);
-  let currentMonday = new Date(firstDay.setDate(diff));
-  currentMonday.setHours(0, 0, 0, 0);
-
-  // Keep adding weeks until the Monday is strictly in the next month
-  while (currentMonday.getMonth() === monthStart.getMonth() || weeks.length === 0) {
-    weeks.push(new Date(currentMonday));
-    const nextModay = new Date(currentMonday);
-    nextModay.setDate(nextModay.getDate() + 7);
-    currentMonday = nextModay;
-  }
-  return weeks;
-};
 
 export default function StudentDashboard({
   subjects,
@@ -45,44 +29,6 @@ export default function StudentDashboard({
 }: StudentDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [hoveredLecture, setHoveredLecture] = useState<{ id: string; index: number } | null>(null);
-
-  const [currentMonth, setCurrentMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const initialWeeks = getWeeksInMonth(monthStart);
-    
-    let foundIdx = 0;
-    for (let i = 0; i < initialWeeks.length; i++) {
-      const wStart = initialWeeks[i];
-      const wEnd = new Date(wStart);
-      wEnd.setDate(wEnd.getDate() + 6);
-      wEnd.setHours(23, 59, 59, 999);
-      if (now >= wStart && now <= wEnd) {
-        foundIdx = i;
-        break;
-      }
-    }
-    return foundIdx;
-  });
-
-  const weeks = getWeeksInMonth(currentMonth);
-  const activeWeekStart = weeks[selectedWeekIndex] || weeks[0];
-  const activeWeekEnd = new Date(activeWeekStart);
-  activeWeekEnd.setDate(activeWeekEnd.getDate() + 6);
-  activeWeekEnd.setHours(23, 59, 59, 999);
-
-  const changeMonth = (offset: number) => {
-    const nextMonth = new Date(currentMonth);
-    nextMonth.setMonth(nextMonth.getMonth() + offset);
-    setCurrentMonth(nextMonth);
-    setSelectedWeekIndex(0);
-  };
-
-  const formatMonth = (date: Date) => {
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  };
 
   const filteredSubjects = subjects.filter((sub) =>
     sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -108,60 +54,9 @@ export default function StudentDashboard({
           />
         </div>
 
-        {/* Month & Week Selector Hub */}
-        <div className="flex flex-col items-center space-y-2 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl shadow-4xs shrink-0 w-full sm:w-auto">
-          {/* Month Selector */}
-          <div className="flex items-center space-x-4 w-full justify-between sm:justify-center">
-            <button 
-              onClick={() => changeMonth(-1)}
-              className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-200 transition-colors"
-            >
-              <ChevronLeft className="h-4.5 w-4.5" />
-            </button>
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-indigo-500" />
-              <span className="text-sm font-black text-slate-800 uppercase tracking-widest w-32 text-center">
-                {formatMonth(currentMonth)}
-              </span>
-            </div>
-            <button 
-              onClick={() => changeMonth(1)}
-              className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-200 transition-colors"
-            >
-              <ChevronRight className="h-4.5 w-4.5" />
-            </button>
-          </div>
-          
-          {/* Week Tabs */}
-          <div className="flex items-center space-x-1.5 w-full overflow-x-auto pb-1 no-scrollbar justify-center">
-            {weeks.map((weekStart, idx) => {
-              const now = new Date();
-              const wEnd = new Date(weekStart);
-              wEnd.setDate(wEnd.getDate() + 6);
-              wEnd.setHours(23, 59, 59, 999);
-              const isOngoing = now >= weekStart && now <= wEnd;
-
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedWeekIndex(idx)}
-                  className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center space-x-1 ${
-                    selectedWeekIndex === idx 
-                      ? 'bg-indigo-600 text-white shadow-sm' 
-                      : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>Week {idx + 1}</span>
-                  {isOngoing && <span className={`h-1.5 w-1.5 rounded-full ${selectedWeekIndex === idx ? 'bg-white' : 'bg-indigo-500 animate-pulse'}`} title="Currently Ongoing" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Informative Tip */}
         {!readOnly && (
-          <div className="hidden lg:flex text-xs text-slate-500 font-sans items-center space-x-1.5 bg-slate-50 border border-slate-100 px-3.5 py-1.5 rounded-xl">
+          <div className="hidden sm:flex text-xs text-slate-500 font-sans items-center space-x-1.5 bg-slate-50 border border-slate-100 px-3.5 py-1.5 rounded-xl shrink-0">
             <Sparkles className="h-3.5 w-3.5 text-indigo-500 animate-pulse" />
             <span className="font-medium truncate">Click slots to cycle: Unmarked → Present → Absent</span>
           </div>
@@ -194,7 +89,6 @@ export default function StudentDashboard({
             const targetThreshold = 75;
             const requiredAttendedCount = Math.ceil(sub.totalLectures * (targetThreshold / 100));
             const isFailing = stats.percentage < targetThreshold;
-            const deviationCount = requiredAttendedCount - stats.attended;
 
             // Generate status label and background colors matching the design spec
             let statusLabel = 'EXCELLENT';
@@ -231,6 +125,24 @@ export default function StudentDashboard({
                 advisoryText = 'Attendance is exactly on the safe limit!';
               }
             }
+
+            // Determine Weekly Groupings
+            const sortedScheduleDays = sub.scheduleDays && sub.scheduleDays.length > 0
+              ? [...sub.scheduleDays].sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b))
+              : undefined;
+
+            const lecturesPerWeek = sortedScheduleDays ? sortedScheduleDays.length : 5;
+            const totalWeeks = Math.ceil(sub.totalLectures / lecturesPerWeek);
+            
+            const weeksArray = Array.from({ length: totalWeeks }).map((_, weekIndex) => {
+              const startIndex = weekIndex * lecturesPerWeek;
+              const endIndex = Math.min(startIndex + lecturesPerWeek, sub.totalLectures);
+              const weekIndices = [];
+              for (let i = startIndex; i < endIndex; i++) {
+                weekIndices.push(i);
+              }
+              return { weekNumber: weekIndex + 1, indices: weekIndices };
+            });
 
             return (
               <div 
@@ -285,7 +197,7 @@ export default function StudentDashboard({
                   </div>
                 </div>
 
-                {/* Ledger marking area with circular grid pattern */}
+                {/* Ledger marking area with week-by-week grouping */}
                 <div className="mt-6 pt-5 border-t border-slate-100 space-y-4">
                   
                   <div className="flex justify-between items-center text-xs">
@@ -296,89 +208,63 @@ export default function StudentDashboard({
                     {/* Tooltip feedback panel readout */}
                     <span className="text-[11px] text-indigo-500 font-bold font-sans h-4">
                       {hoveredLecture && hoveredLecture.id === sub.id 
-                        ? (sub.lectureDates?.[hoveredLecture.index] 
-                            ? `Date: ${sub.lectureDates[hoveredLecture.index]}` 
-                            : `Lecture Slot ${hoveredLecture.index + 1}`)
-                        : (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.join(' • ') : ''
+                        ? `Lecture Slot ${hoveredLecture.index + 1}`
+                        : sortedScheduleDays ? sortedScheduleDays.join(' • ') : ''
                       }
                     </span>
                   </div>
 
-                  {/* Lecture grid */}
-                  <div className="flex flex-wrap gap-2.5" id={`lecture-grid-${sub.id}`}>
-                    {Array.from({ length: sub.totalLectures }).map((_, idx) => {
-                      const status = records[idx] || 'unmarked';
-                      const dateStr = sub.lectureDates?.[idx];
-                      
-                      // Filter by current week if the subject uses specific dates
-                      if (dateStr) {
-                         const d = new Date(dateStr);
-                         d.setHours(0,0,0,0);
-                         if (d < activeWeekStart || d > activeWeekEnd) return null;
-                      } else {
-                         // Fallback for subjects without specific dates: 
-                         // Paginate slots sequentially based on the selected week tab.
-                         const lecturesPerWeek = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
-                         const startIndex = selectedWeekIndex * lecturesPerWeek;
-                         const endIndex = startIndex + lecturesPerWeek;
-                         if (idx < startIndex || idx >= endIndex) return null;
-                      }
-
-                      // Determine day abbreviation for button
-                      let dayAbbr = 'Mon';
-                      if (dateStr) {
-                        dayAbbr = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' });
-                      } else if (sub.scheduleDays && sub.scheduleDays.length > 0) {
-                        dayAbbr = sub.scheduleDays[idx % sub.scheduleDays.length];
-                      }
-                      
-                      return (
-                        <button
-                          key={idx}
-                          disabled={readOnly}
-                          onClick={() => onToggleLecture(sub.id, idx)}
-                          onMouseEnter={() => setHoveredLecture({ id: sub.id, index: idx })}
-                          onMouseLeave={() => setHoveredLecture(null)}
-                          className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
-                            readOnly ? 'cursor-default opacity-90' : 'cursor-pointer hover:scale-105 active:scale-95'
-                          } select-none transition-all relative ${
-                            status === 'attended'
-                              ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
-                              : status === 'missed'
-                              ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
-                              : 'bg-slate-50 border-slate-205 text-slate-400 hover:border-slate-300'
-                          }`}
-                          title={dateStr ? `Date: ${dateStr}` : `Lecture ${idx + 1}: ${status.toUpperCase()}`}
-                          id={`btn-lecture-slot-${sub.id}-${idx}`}
-                        >
-                          {status === 'attended' ? (
-                            <CheckCircle2 className="h-4.5 w-4.5" />
-                          ) : status === 'missed' ? (
-                            <XCircle className="h-4.5 w-4.5" />
-                          ) : (
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">{dayAbbr}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                    
-                    {Array.from({ length: sub.totalLectures }).filter((_, idx) => {
-                       const dateStr = sub.lectureDates?.[idx];
-                       if (dateStr) {
-                         const d = new Date(dateStr);
-                         d.setHours(0,0,0,0);
-                         return d >= activeWeekStart && d <= activeWeekEnd;
-                       } else {
-                         const lecturesPerWeek = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
-                         const startIndex = selectedWeekIndex * lecturesPerWeek;
-                         const endIndex = startIndex + lecturesPerWeek;
-                         return idx >= startIndex && idx < endIndex;
-                       }
-                    }).length === 0 && (
-                      <div className="text-xs text-slate-400 font-medium py-2 px-1">
-                        No lectures scheduled for this week.
+                  {/* Grouped Lecture grid */}
+                  <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                    {weeksArray.map((week) => (
+                      <div key={week.weekNumber} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+                          Week {week.weekNumber}
+                        </h4>
+                        <div className="flex flex-wrap gap-2.5">
+                          {week.indices.map((idx) => {
+                            const status = records[idx] || 'unmarked';
+                            
+                            // Determine day abbreviation for button
+                            let dayAbbr = 'Mon';
+                            if (sortedScheduleDays) {
+                              dayAbbr = sortedScheduleDays[idx % sortedScheduleDays.length];
+                            } else {
+                              dayAbbr = `L${idx + 1}`;
+                            }
+                            
+                            return (
+                              <button
+                                key={idx}
+                                disabled={readOnly}
+                                onClick={() => onToggleLecture(sub.id, idx)}
+                                onMouseEnter={() => setHoveredLecture({ id: sub.id, index: idx })}
+                                onMouseLeave={() => setHoveredLecture(null)}
+                                className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
+                                  readOnly ? 'cursor-default opacity-90' : 'cursor-pointer hover:scale-105 active:scale-95'
+                                } select-none transition-all relative ${
+                                  status === 'attended'
+                                    ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
+                                    : status === 'missed'
+                                    ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
+                                    : 'bg-white border-slate-205 text-slate-400 hover:border-slate-300 shadow-4xs'
+                                }`}
+                                title={`Lecture ${idx + 1}: ${status.toUpperCase()}`}
+                                id={`btn-lecture-slot-${sub.id}-${idx}`}
+                              >
+                                {status === 'attended' ? (
+                                  <CheckCircle2 className="h-4.5 w-4.5" />
+                                ) : status === 'missed' ? (
+                                  <XCircle className="h-4.5 w-4.5" />
+                                ) : (
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase">{dayAbbr.substring(0, 3)}</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
 
                   {/* Quick-Mark settings ribbon */}
@@ -446,4 +332,3 @@ export default function StudentDashboard({
     </div>
   );
 }
-
