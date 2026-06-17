@@ -521,7 +521,7 @@ export default function App() {
       <footer className="bg-white border-t border-slate-200 py-8 mt-16 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4">
           <p className="font-sans font-bold text-slate-500">
-            AttendanceSync • Class Attendance Tracker
+            No Defaultes • Class Attendance Tracker
           </p>
           <p className="text-[10px] font-mono mt-1.5 opacity-75">
             Designed with secure Supabase cloud backend integration.
