@@ -150,6 +150,33 @@ export default function App() {
     await saveAttendance(updatedAttendance, session.user.id);
   };
 
+  // Bulk set status for specific indices (a week)
+  const handleBulkMarkWeek = async (subjectId: string, indices: number[], status: AttendanceStatus) => {
+    if (!session) return;
+    const subjectObj = subjects.find(s => s.id === subjectId);
+    if (!subjectObj) return;
+
+    const currentList = [...(attendance[subjectId] || [])];
+    // Ensure array is long enough
+    while (currentList.length < subjectObj.totalLectures) {
+      currentList.push('unmarked');
+    }
+
+    indices.forEach(idx => {
+      if (idx < currentList.length) {
+        currentList[idx] = status;
+      }
+    });
+
+    const updatedAttendance = {
+      ...attendance,
+      [subjectId]: currentList,
+    };
+    
+    setAttendance(updatedAttendance);
+    await saveAttendance(updatedAttendance, session.user.id);
+  };
+
   // Quick increments or decrements in Admin view
   const handleUpdateLecturesCount = async (id: string, count: number) => {
     const updatedSubjects = subjects.map((sub) => {
@@ -441,8 +468,7 @@ export default function App() {
                 subjects={subjects}
                 attendance={attendance}
                 onToggleLecture={handleToggleLecture}
-                onBulkMark={handleBulkMark}
-                onClearSubjectRecords={(id) => handleBulkMark(id, 'unmarked')}
+                onBulkMarkWeek={handleBulkMarkWeek}
               />
             </div>
           </div>

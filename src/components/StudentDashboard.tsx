@@ -14,8 +14,7 @@ interface StudentDashboardProps {
   subjects: Subject[];
   attendance: StudentAttendance;
   onToggleLecture: (subjectId: string, lectureIndex: number) => void;
-  onBulkMark: (subjectId: string, status: AttendanceStatus) => void;
-  onClearSubjectRecords: (subjectId: string) => void;
+  onBulkMarkWeek?: (subjectId: string, indices: number[], status: AttendanceStatus) => void;
   readOnly?: boolean;
 }
 
@@ -23,8 +22,7 @@ export default function StudentDashboard({
   subjects,
   attendance,
   onToggleLecture,
-  onBulkMark,
-  onClearSubjectRecords,
+  onBulkMarkWeek,
   readOnly = false,
 }: StudentDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -218,9 +216,28 @@ export default function StudentDashboard({
                   <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                     {weeksArray.map((week) => (
                       <div key={week.weekNumber} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-                          Week {week.weekNumber}
-                        </h4>
+                        <div className="flex justify-between items-center mb-2.5">
+                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Week {week.weekNumber}
+                          </h4>
+                          {!readOnly && onBulkMarkWeek && (
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={() => onBulkMarkWeek(sub.id, week.indices, 'attended')}
+                                className="text-[9px] font-bold bg-white text-slate-600 hover:text-emerald-600 border border-slate-200 px-1.5 py-0.5 rounded transition-all shadow-4xs"
+                              >All Present</button>
+                              <button
+                                onClick={() => onBulkMarkWeek(sub.id, week.indices, 'missed')}
+                                className="text-[9px] font-bold bg-white text-slate-600 hover:text-rose-600 border border-slate-200 px-1.5 py-0.5 rounded transition-all shadow-4xs"
+                              >All Absent</button>
+                              <button
+                                onClick={() => onBulkMarkWeek(sub.id, week.indices, 'unmarked')}
+                                className="text-[9px] font-bold bg-white text-slate-400 hover:text-slate-700 border border-slate-200 px-1 p-0.5 rounded transition-all shadow-4xs flex items-center justify-center"
+                                title="Reset Week"
+                              ><RotateCcw className="h-2.5 w-2.5" /></button>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex flex-wrap gap-2.5">
                           {week.indices.map((idx) => {
                             const status = records[idx] || 'unmarked';
@@ -268,38 +285,8 @@ export default function StudentDashboard({
                   </div>
 
                   {/* Quick-Mark settings ribbon */}
-                  <div className="pt-3 border-t border-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50 p-2.5 rounded-xl">
+                  <div className="pt-3 border-t border-slate-50 flex items-center justify-end bg-slate-50/50 p-2.5 rounded-xl">
                     
-                    {/* Bulk controls */}
-                    {!readOnly ? (
-                      <div className="flex items-center space-x-2 w-full sm:w-auto">
-                        <button
-                          onClick={() => onBulkMark(sub.id, 'attended')}
-                          className="text-[9.5px] font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg transition-colors shadow-4xs"
-                          id={`btn-bulk-attend-${sub.id}`}
-                        >
-                          All Present
-                        </button>
-                        <button
-                          onClick={() => onBulkMark(sub.id, 'missed')}
-                          className="text-[9.5px] font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg transition-colors shadow-4xs"
-                          id={`btn-bulk-miss-${sub.id}`}
-                        >
-                          All Absent
-                        </button>
-                        <button
-                          onClick={() => onBulkMark(sub.id, 'unmarked')}
-                          className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-white hover:shadow-4xs transition-colors"
-                          title="Reset slots"
-                          id={`btn-clear-status-${sub.id}`}
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex-1" />
-                    )}
-
                     {/* Target advisory message */}
                     <div className="text-[10px] font-bold tracking-tight text-right w-full sm:w-auto">
                       <span className="text-slate-400 font-mono">STATUS: </span>
