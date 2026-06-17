@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { GraduationCap, ShieldAlert, User, RotateCcw, Shield, LogOut } from 'lucide-react';
+import { Scale, ShieldAlert, User, RotateCcw, Shield, LogOut } from 'lucide-react';
 import { UserRole } from '../types';
 
 interface NavbarProps {
@@ -23,8 +23,8 @@ export default function Navbar({ currentRole, onChangeRole, onReset, onLogout, i
           
           {/* Main Logo & Platform Branding */}
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
-              <GraduationCap className="h-5.5 w-5.5 text-white" />
+            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm transform transition-transform hover:scale-105">
+              <Scale className="h-5 w-5 text-white" />
             </div>
             <div>
               <h1 className="font-sans font-bold text-xl tracking-tight text-slate-800">

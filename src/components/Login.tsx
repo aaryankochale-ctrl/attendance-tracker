@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { GraduationCap, Check, Loader2 } from 'lucide-react';
+import { Scale, Check, Loader2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 export default function Login() {
@@ -76,7 +76,7 @@ export default function Login() {
         
         <div className="relative z-10 max-w-lg px-12 text-white">
           <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-8 shadow-lg">
-            <GraduationCap className="h-7 w-7 text-indigo-600" />
+            <Scale className="h-7 w-7 text-indigo-600" />
           </div>
           <h1 className="text-4xl font-semibold tracking-tight mb-4 leading-tight">
             Manage your attendance with precision.
@@ -102,7 +102,7 @@ export default function Login() {
           
           <div className="lg:hidden flex items-center space-x-2 mb-8">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 text-white" />
+              <Scale className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold text-slate-900 tracking-tight">Bunk Balance</span>
           </div>
