@@ -82,7 +82,7 @@ export default function Login() {
             Manage your attendance with precision.
           </h1>
           <p className="text-lg text-indigo-100 font-medium leading-relaxed">
-            No Defaultes helps universities and students maintain accurate records, analyze trends, and achieve better academic outcomes.
+            Bunk Balance helps universities and students maintain accurate records, analyze trends, and achieve better academic outcomes.
           </p>
         </div>
       </div>
@@ -104,7 +104,7 @@ export default function Login() {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               <GraduationCap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900 tracking-tight">No Defaultes</span>
+            <span className="text-xl font-bold text-slate-900 tracking-tight">Bunk Balance</span>
           </div>
 
           <div className="flex p-1 bg-slate-100 rounded-lg mb-8">
