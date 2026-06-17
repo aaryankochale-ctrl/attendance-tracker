@@ -28,7 +28,7 @@ export default function Navbar({ currentRole, onChangeRole, onReset, onLogout, i
             </div>
             <div>
               <h1 className="font-sans font-bold text-xl tracking-tight text-slate-800">
-                Attendance<span className="text-indigo-600">Sync</span>
+                Bunk<span className="text-indigo-600">Balance</span>
               </h1>
             </div>
           </div>
