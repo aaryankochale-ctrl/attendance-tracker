@@ -115,7 +115,7 @@ export default function AdminDashboard({
         const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": \`Bearer \${apiKey}\`,
+            "Authorization": `Bearer ${apiKey}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
@@ -125,7 +125,7 @@ export default function AdminDashboard({
                 role: "user",
                 content: [
                   { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: \`data:\${file.type};base64,\${base64Str}\` } }
+                  { type: "image_url", image_url: { url: `data:${file.type};base64,${base64Str}` } }
                 ]
               }
             ],
@@ -136,7 +136,7 @@ export default function AdminDashboard({
 
         if (!groqRes.ok) {
           const errData = await groqRes.json().catch(() => null);
-          throw new Error(errData?.error?.message || \`HTTP \${groqRes.status}\`);
+          throw new Error(errData?.error?.message || `HTTP ${groqRes.status}`);
         }
 
         const data = await groqRes.json();
@@ -150,7 +150,7 @@ export default function AdminDashboard({
         if (err?.message?.includes('429') || err?.message?.toLowerCase().includes('quota')) {
           throw new Error('Your Groq API Key has exceeded its quota (Rate Limit). Please check your Groq console.');
         }
-        throw new Error(\`Groq API failed: \${err?.message}\`);
+        throw new Error(`Groq API failed: ${err?.message}`);
       }
 
       const rawText = responseText || "[]";
