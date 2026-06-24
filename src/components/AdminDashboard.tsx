@@ -9,6 +9,7 @@ import { Subject, Profile, AllUsersAttendance, SubjectStats } from '../types';
 import { calculateSubjectStats } from '../data';
 import { SUBJECT_COLORS } from '../data';
 import Papa from 'papaparse';
+import { GoogleGenAI } from '@google/genai';
 import StudentDashboard from './StudentDashboard';
 import StatsOverview from './StatsOverview';
 
@@ -60,8 +61,8 @@ export default function AdminDashboard({
   const [apiKeyInput, setApiKeyInput] = useState('');
 
   // Read from .env first, then fallback to localStorage
-  const envApiKey = (import.meta as any).env.VITE_GROQ_API_KEY || '';
-  const [groqApiKey, setGroqApiKey] = useState(() => envApiKey || localStorage.getItem('groqApiKey') || '');
+  const envApiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || '';
+  const [geminiApiKey, setGeminiApiKey] = useState(() => envApiKey || localStorage.getItem('geminiApiKey') || '');
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
 
   const formatDateLocal = (date: Date) => {
@@ -72,8 +73,8 @@ export default function AdminDashboard({
   };
 
   const handleSaveApiKey = () => {
-    localStorage.setItem('groqApiKey', apiKeyInput);
-    setGroqApiKey(apiKeyInput);
+    localStorage.setItem('geminiApiKey', apiKeyInput);
+    setGeminiApiKey(apiKeyInput);
     setShowApiKeyModal(false);
     if (pendingImageFile) {
       processImageWithAI(pendingImageFile, apiKeyInput);
@@ -84,6 +85,8 @@ export default function AdminDashboard({
   const processImageWithAI = async (file: File, apiKey: string) => {
     setIsAILoading(true);
     try {
+      const ai = new GoogleGenAI({ apiKey });
+
       const base64Str = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -108,52 +111,77 @@ export default function AdminDashboard({
         Return ONLY the raw JSON array without markdown backticks.
       `;
 
-      let responseText = null;
+      let response = null;
+      let lastError = null;
 
       try {
-        console.log('Trying Groq model: llama-3.2-90b-vision-preview...');
-        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "llama-3.2-90b-vision-preview",
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: `data:${file.type};base64,${base64Str}` } }
-                ]
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 1500
-          })
-        });
+        // Dynamically fetch exactly which models are allowed for this specific API key
+        const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const modelsData = await modelsRes.json();
 
-        if (!groqRes.ok) {
-          const errData = await groqRes.json().catch(() => null);
-          throw new Error(errData?.error?.message || `HTTP ${groqRes.status}`);
+        let validModels = [
+          'gemini-2.0-flash',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+          'gemini-pro-vision'
+        ];
+
+        if (modelsData && modelsData.models) {
+          const allAvailable = modelsData.models
+            .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+            .map((m: any) => m.name.replace('models/', ''));
+
+          // Intersect our safe list with the ones Google says are available
+          const filteredModels = validModels.filter(m => allAvailable.includes(m));
+
+          if (filteredModels.length > 0) {
+            validModels = filteredModels;
+          } else {
+            // Fallback: pick the first 3 that start with 'gemini-' just in case
+            validModels = allAvailable.filter((m: string) => m.startsWith('gemini-')).slice(0, 3);
+          }
+          console.log('Filtered safe models for your API key:', validModels);
         }
 
-        const data = await groqRes.json();
-        responseText = data.choices?.[0]?.message?.content;
-        
-        if (!responseText) {
-           throw new Error("Empty response from Groq");
+        for (const modelName of validModels) {
+          try {
+            console.log(`Trying Gemini model: ${modelName}...`);
+            response = await ai.models.generateContent({
+              model: modelName,
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { text: prompt },
+                    {
+                      inlineData: {
+                        data: base64Str,
+                        mimeType: file.type
+                      }
+                    }
+                  ]
+                }
+              ]
+            });
+            console.log(`Success with model: ${modelName}`);
+            break; // It worked! Break out of the loop
+          } catch (err: any) {
+            console.warn(`Model ${modelName} failed:`, err.message);
+            lastError = err;
+          }
         }
-        
       } catch (err: any) {
-        if (err?.message?.includes('429') || err?.message?.toLowerCase().includes('quota')) {
-          throw new Error('Your Groq API Key has exceeded its quota (Rate Limit). Please check your Groq console.');
-        }
-        throw new Error(`Groq API failed: ${err?.message}`);
+        lastError = err;
       }
 
-      const rawText = responseText || "[]";
+      if (!response) {
+        if (lastError?.message?.includes('429') || lastError?.message?.toLowerCase().includes('quota')) {
+          throw new Error(`Your Google API Key has exceeded its free tier quota (Rate Limit). Please wait a few minutes or check your Google Cloud billing settings.`);
+        }
+        throw new Error(`All AI models failed or are overloaded. Last error: ${lastError?.message}`);
+      }
+
+      const rawText = response.text || "[]";
       let cleanJson = rawText;
       if (rawText.includes("```json")) {
         cleanJson = rawText.replace(/```json\n/g, '').replace(/```/g, '');
