@@ -273,7 +273,7 @@ export default function App() {
 
     updatedSubjects = updatedSubjects.map(sub => {
       const removedLectures = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
-      const newTotal = Math.max(1, sub.totalLectures - removedLectures);
+      const newTotal = Math.max(0, sub.totalLectures - removedLectures);
       return { ...sub, totalLectures: newTotal };
     });
 

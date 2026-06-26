@@ -73,8 +73,8 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = 'Subject name is required';
     if (!code.trim()) newErrors.code = 'Subject code is required';
-    if (totalWeeks <= 0 || totalWeeks > 52) {
-      newErrors.totalWeeks = 'Weeks must be between 1 and 52.';
+    if (totalWeeks < 0 || totalWeeks > 52) {
+      newErrors.totalWeeks = 'Weeks must be between 0 and 52.';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -186,7 +186,7 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
               </label>
               <input
                 type="number"
-                min={1}
+                min={0}
                 max={52}
                 value={totalWeeks}
                 onChange={(e) => setTotalWeeks(parseInt(e.target.value) || 0)}
