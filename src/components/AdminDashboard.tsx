@@ -567,10 +567,9 @@ export default function AdminDashboard({
                         <button
                           onClick={() => {
                             const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
-                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
-                            onUpdateLecturesCount(sub.id, Math.max(1, (currentWeeks - 1) * daysCount));
+                            onUpdateLecturesCount(sub.id, Math.max(1, sub.totalLectures - daysCount));
                           }}
-                          disabled={Math.ceil(sub.totalLectures / Math.max(1, sub.scheduleDays?.length || 1)) <= 1}
+                          disabled={sub.totalLectures <= Math.max(1, sub.scheduleDays?.length || 1)}
                           className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
                         >–</button>
                         <input
@@ -581,8 +580,10 @@ export default function AdminDashboard({
                           onChange={(e) => {
                             const val = parseInt(e.target.value);
                             const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
+                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
                             if (!isNaN(val) && val >= 1 && val <= 52) {
-                              onUpdateLecturesCount(sub.id, val * daysCount);
+                              const diff = val - currentWeeks;
+                              onUpdateLecturesCount(sub.id, Math.max(1, sub.totalLectures + diff * daysCount));
                             }
                           }}
                           className="font-mono font-bold text-slate-800 text-sm w-12 text-center bg-white p-1 rounded-md border border-slate-200 shadow-3xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 appearance-none m-0"
@@ -590,8 +591,7 @@ export default function AdminDashboard({
                         <button
                           onClick={() => {
                             const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
-                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
-                            onUpdateLecturesCount(sub.id, Math.min(52 * daysCount, (currentWeeks + 1) * daysCount));
+                            onUpdateLecturesCount(sub.id, Math.min(52 * daysCount, sub.totalLectures + daysCount));
                           }}
                           disabled={Math.ceil(sub.totalLectures / Math.max(1, sub.scheduleDays?.length || 1)) >= 52}
                           className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
