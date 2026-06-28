@@ -25,6 +25,7 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
   const [room, setRoom] = useState('');
   const [selectedColor, setSelectedColor] = useState(SUBJECT_COLORS[0]);
   const [scheduleDays, setScheduleDays] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Synchronize state when the editing target changes or modal opens
@@ -38,6 +39,7 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       setRoom(editingSubject.room || '');
       setSelectedColor(editingSubject.color || SUBJECT_COLORS[0]);
       setScheduleDays(editingSubject.scheduleDays || []);
+      setStartDate(editingSubject.startDate || '');
     } else {
       // Set pristine default state
       setName('');
@@ -47,6 +49,7 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       setRoom('');
       setSelectedColor(SUBJECT_COLORS[Math.floor(Math.random() * SUBJECT_COLORS.length)]);
       setScheduleDays(['Mon', 'Wed', 'Fri']);
+      setStartDate('');
     }
     setErrors({});
   }, [editingSubject, isOpen]);
@@ -93,6 +96,7 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
       room: room.trim() || undefined,
       scheduleDays: scheduleDays.length > 0 ? [...scheduleDays].sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b)) : undefined,
       color: selectedColor,
+      startDate: startDate || undefined,
     });
     onClose();
   };
@@ -231,6 +235,20 @@ export default function SubjectFormModal({ isOpen, onClose, onSave, editingSubje
                 className="w-full px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border border-slate-200 transition-all text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-505"
                 maxLength={30}
                 id="input-subject-room"
+              />
+            </div>
+
+            {/* Start Date */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border border-slate-200 transition-all text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-505"
+                id="input-subject-start-date"
               />
             </div>
 

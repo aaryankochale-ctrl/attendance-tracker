@@ -142,6 +142,27 @@ export default function StudentDashboard({
               return { weekNumber: weekIndex + 1, indices: weekIndices };
             });
 
+            // Calculate dates if startDate is available
+            const lectureDates: string[] = [];
+            if (sub.startDate && sortedScheduleDays) {
+              const start = new Date(sub.startDate + 'T00:00:00');
+              const dayMap: Record<string, number> = {
+                'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+              };
+              const targetDays = sortedScheduleDays.map((d: string) => dayMap[d]).filter((d: number | undefined) => d !== undefined);
+              
+              if (targetDays.length > 0) {
+                let current = new Date(start);
+                while (lectureDates.length < sub.totalLectures) {
+                  if (targetDays.includes(current.getDay())) {
+                    lectureDates.push(`${String(current.getDate()).padStart(2, '0')}/${String(current.getMonth() + 1).padStart(2, '0')}`);
+                  }
+                  current.setDate(current.getDate() + 1);
+                  if (lectureDates.length > 400) break; // sanity check limit
+                }
+              }
+            }
+
             return (
               <div 
                 key={sub.id} 
@@ -250,33 +271,37 @@ export default function StudentDashboard({
                               dayAbbr = `L${idx + 1}`;
                             }
                             
+                            const dateStr = lectureDates[idx];
+                            
                             return (
-                              <button
-                                key={idx}
-                                disabled={readOnly}
-                                onClick={() => onToggleLecture(sub.id, idx)}
-                                onMouseEnter={() => setHoveredLecture({ id: sub.id, index: idx })}
-                                onMouseLeave={() => setHoveredLecture(null)}
-                                className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
-                                  readOnly ? 'cursor-default opacity-90' : 'cursor-pointer hover:scale-105 active:scale-95'
-                                } select-none transition-all relative ${
-                                  status === 'attended'
-                                    ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
-                                    : status === 'missed'
-                                    ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
-                                    : 'bg-white border-slate-205 text-slate-400 hover:border-slate-300 shadow-4xs'
-                                }`}
-                                title={`Lecture ${idx + 1}: ${status.toUpperCase()}`}
-                                id={`btn-lecture-slot-${sub.id}-${idx}`}
-                              >
-                                {status === 'attended' ? (
-                                  <CheckCircle2 className="h-4.5 w-4.5" />
-                                ) : status === 'missed' ? (
-                                  <XCircle className="h-4.5 w-4.5" />
-                                ) : (
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase">{dayAbbr.substring(0, 3)}</span>
-                                )}
-                              </button>
+                              <div key={idx} className="flex flex-col items-center space-y-1">
+                                <button
+                                  disabled={readOnly}
+                                  onClick={() => onToggleLecture(sub.id, idx)}
+                                  onMouseEnter={() => setHoveredLecture({ id: sub.id, index: idx })}
+                                  onMouseLeave={() => setHoveredLecture(null)}
+                                  className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
+                                    readOnly ? 'cursor-default opacity-90' : 'cursor-pointer hover:scale-105 active:scale-95'
+                                  } select-none transition-all relative ${
+                                    status === 'attended'
+                                      ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
+                                      : status === 'missed'
+                                      ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
+                                      : 'bg-white border-slate-205 text-slate-400 hover:border-slate-300 shadow-4xs'
+                                  }`}
+                                  title={`Lecture ${idx + 1}: ${status.toUpperCase()}`}
+                                  id={`btn-lecture-slot-${sub.id}-${idx}`}
+                                >
+                                  {status === 'attended' ? (
+                                    <CheckCircle2 className="h-4.5 w-4.5" />
+                                  ) : status === 'missed' ? (
+                                    <XCircle className="h-4.5 w-4.5" />
+                                  ) : (
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase">{dayAbbr.substring(0, 3)}</span>
+                                  )}
+                                </button>
+                                {dateStr && <span className="text-[9px] font-semibold text-slate-400 font-mono tracking-tight">{dateStr}</span>}
+                              </div>
                             );
                           })}
                         </div>

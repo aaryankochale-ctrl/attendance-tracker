@@ -375,8 +375,8 @@ export default function AdminDashboard({
             setSelectedStudentId(null);
           }}
           className={`pb-3 font-bold text-sm transition-colors border-b-2 ${activeTab === 'subjects'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+            ? 'border-indigo-600 text-indigo-600'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
         >
           <div className="flex items-center space-x-2">
@@ -390,8 +390,8 @@ export default function AdminDashboard({
             setSearchTerm('');
           }}
           className={`pb-3 font-bold text-sm transition-colors border-b-2 ${activeTab === 'students'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+            ? 'border-indigo-600 text-indigo-600'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
         >
           <div className="flex items-center space-x-2">
@@ -567,7 +567,8 @@ export default function AdminDashboard({
                         <button
                           onClick={() => {
                             const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
-                            onUpdateLecturesCount(sub.id, Math.max(0, sub.totalLectures - daysCount));
+                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
+                            onUpdateLecturesCount(sub.id, Math.max(0, (currentWeeks - 1) * daysCount));
                           }}
                           disabled={sub.totalLectures <= 0}
                           className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
@@ -580,10 +581,8 @@ export default function AdminDashboard({
                           onChange={(e) => {
                             const val = parseInt(e.target.value);
                             const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
-                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
                             if (!isNaN(val) && val >= 0 && val <= 52) {
-                              const diff = val - currentWeeks;
-                              onUpdateLecturesCount(sub.id, Math.max(0, sub.totalLectures + diff * daysCount));
+                              onUpdateLecturesCount(sub.id, val * daysCount);
                             }
                           }}
                           className="font-mono font-bold text-slate-800 text-sm w-12 text-center bg-white p-1 rounded-md border border-slate-200 shadow-3xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 appearance-none m-0"
@@ -591,7 +590,8 @@ export default function AdminDashboard({
                         <button
                           onClick={() => {
                             const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
-                            onUpdateLecturesCount(sub.id, Math.min(52 * daysCount, sub.totalLectures + daysCount));
+                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
+                            onUpdateLecturesCount(sub.id, Math.min(52 * daysCount, (currentWeeks + 1) * daysCount));
                           }}
                           disabled={Math.ceil(sub.totalLectures / Math.max(1, sub.scheduleDays?.length || 1)) >= 52}
                           className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"

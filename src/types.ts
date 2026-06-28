@@ -14,6 +14,7 @@ export interface Subject {
   room?: string;
   scheduleDays?: string[];
   color?: string; // Hex color or Tailwind color name for visual grouping
+  startDate?: string;
 }
 
 export type StudentAttendance = Record<string, AttendanceStatus[]>;

@@ -250,8 +250,9 @@ export default function App() {
     let updatedAttendance = { ...attendance };
 
     updatedSubjects = updatedSubjects.map(sub => {
-      const addedLectures = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
-      const newTotal = Math.min(100, sub.totalLectures + addedLectures);
+      const daysCount = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
+      const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
+      const newTotal = Math.min(52 * daysCount, (currentWeeks + 1) * daysCount);
       return { ...sub, totalLectures: newTotal };
     });
 
@@ -272,8 +273,9 @@ export default function App() {
     let updatedAttendance = { ...attendance };
 
     updatedSubjects = updatedSubjects.map(sub => {
-      const removedLectures = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
-      const newTotal = Math.max(0, sub.totalLectures - removedLectures);
+      const daysCount = (sub.scheduleDays && sub.scheduleDays.length > 0) ? sub.scheduleDays.length : 5;
+      const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
+      const newTotal = Math.max(0, (currentWeeks - 1) * daysCount);
       return { ...sub, totalLectures: newTotal };
     });
 

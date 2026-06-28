@@ -20,6 +20,7 @@ export const INITIAL_SUBJECTS: Subject[] = [
     room: 'Hall B, Science Block',
     scheduleDays: ['Mon', 'Wed', 'Fri'],
     color: '#0EA5E9',
+    startDate: '2024-08-12',
   },
   {
     id: 'subj_cs_101',
@@ -30,6 +31,7 @@ export const INITIAL_SUBJECTS: Subject[] = [
     room: 'Lab 4, Computing Center',
     scheduleDays: ['Mon', 'Tue', 'Thu', 'Fri'],
     color: '#10B981',
+    startDate: '2024-08-12',
   },
   {
     id: 'subj_phys_202',
@@ -40,6 +42,7 @@ export const INITIAL_SUBJECTS: Subject[] = [
     room: 'Audi 2, Physics Lab',
     scheduleDays: ['Tue', 'Thu'],
     color: '#F59E0B',
+    startDate: '2024-08-13',
   },
   {
     id: 'subj_lit_110',
@@ -50,6 +53,7 @@ export const INITIAL_SUBJECTS: Subject[] = [
     room: 'Room 102, Liberal Arts',
     scheduleDays: ['Wed', 'Fri'],
     color: '#8B5CF6',
+    startDate: '2024-08-14',
   },
   {
     id: 'subj_bio_120',
@@ -60,6 +64,7 @@ export const INITIAL_SUBJECTS: Subject[] = [
     room: 'Room 303, Bio Science',
     scheduleDays: ['Mon', 'Tue', 'Wed'],
     color: '#EC4899',
+    startDate: '2024-08-12',
   },
 ];
 
