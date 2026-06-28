@@ -142,10 +142,11 @@ export default function StudentDashboard({
               return { weekNumber: weekIndex + 1, indices: weekIndices };
             });
 
-            // Calculate dates if startDate is available
+            // Calculate dates if startDate is available or use fallback
             const lectureDates: string[] = [];
-            if (sub.startDate && sortedScheduleDays) {
-              const start = new Date(sub.startDate + 'T00:00:00');
+            if (sortedScheduleDays) {
+              const startStr = sub.startDate || '2024-08-01'; // Fallback for existing subjects
+              const start = new Date(startStr + 'T00:00:00');
               const dayMap: Record<string, number> = {
                 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
               };
@@ -274,34 +275,33 @@ export default function StudentDashboard({
                             const dateStr = lectureDates[idx];
                             
                             return (
-                              <div key={idx} className="flex flex-col items-center space-y-1">
-                                <button
-                                  disabled={readOnly}
-                                  onClick={() => onToggleLecture(sub.id, idx)}
-                                  onMouseEnter={() => setHoveredLecture({ id: sub.id, index: idx })}
-                                  onMouseLeave={() => setHoveredLecture(null)}
-                                  className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
-                                    readOnly ? 'cursor-default opacity-90' : 'cursor-pointer hover:scale-105 active:scale-95'
-                                  } select-none transition-all relative ${
-                                    status === 'attended'
-                                      ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
-                                      : status === 'missed'
-                                      ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
-                                      : 'bg-white border-slate-205 text-slate-400 hover:border-slate-300 shadow-4xs'
-                                  }`}
-                                  title={`Lecture ${idx + 1}: ${status.toUpperCase()}`}
-                                  id={`btn-lecture-slot-${sub.id}-${idx}`}
-                                >
-                                  {status === 'attended' ? (
-                                    <CheckCircle2 className="h-4.5 w-4.5" />
-                                  ) : status === 'missed' ? (
-                                    <XCircle className="h-4.5 w-4.5" />
-                                  ) : (
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase">{dayAbbr.substring(0, 3)}</span>
-                                  )}
-                                </button>
-                                {dateStr && <span className="text-[9px] font-semibold text-slate-400 font-mono tracking-tight">{dateStr}</span>}
-                              </div>
+                              <button
+                                key={idx}
+                                disabled={readOnly}
+                                onClick={() => onToggleLecture(sub.id, idx)}
+                                onMouseEnter={() => setHoveredLecture({ id: sub.id, index: idx })}
+                                onMouseLeave={() => setHoveredLecture(null)}
+                                className={`h-11 w-11 p-1 rounded-xl flex flex-col items-center justify-center font-bold text-xs border ${
+                                  readOnly ? 'cursor-default opacity-90' : 'cursor-pointer hover:scale-105 active:scale-95'
+                                } select-none transition-all relative ${
+                                  status === 'attended'
+                                    ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
+                                    : status === 'missed'
+                                    ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
+                                    : 'bg-white border-slate-205 text-slate-400 hover:border-slate-300 shadow-4xs'
+                                }`}
+                                title={`Lecture ${idx + 1}: ${status.toUpperCase()}`}
+                                id={`btn-lecture-slot-${sub.id}-${idx}`}
+                              >
+                                {status === 'attended' ? (
+                                  <CheckCircle2 className="h-4 w-4 mb-0.5" />
+                                ) : status === 'missed' ? (
+                                  <XCircle className="h-4 w-4 mb-0.5" />
+                                ) : (
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase leading-none">{dayAbbr.substring(0, 3)}</span>
+                                )}
+                                {dateStr && <span className={`text-[8px] font-semibold tracking-tight mt-0.5 ${status === 'unmarked' ? 'text-slate-400' : 'text-white/90'}`}>{dateStr}</span>}
+                              </button>
                             );
                           })}
                         </div>
