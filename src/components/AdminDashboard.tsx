@@ -12,6 +12,7 @@ import Papa from 'papaparse';
 import { GoogleGenAI } from '@google/genai';
 import StudentDashboard from './StudentDashboard';
 import StatsOverview from './StatsOverview';
+import ScheduleEditorModal from './ScheduleEditorModal';
 
 interface AdminDashboardProps {
   subjects: Subject[];
@@ -20,6 +21,7 @@ interface AdminDashboardProps {
   onAddSubject: () => void;
   onEditSubject: (subject: Subject) => void;
   onDeleteSubject: (id: string) => void;
+  onUpdateSubject: (subject: Subject) => void;
   onUpdateLecturesCount: (id: string, count: number) => void;
   onBulkAddSubjects: (subjects: Subject[]) => void;
   onAddWeekToAll: () => void;
@@ -37,6 +39,7 @@ export default function AdminDashboard({
   onAddSubject,
   onEditSubject,
   onDeleteSubject,
+  onUpdateSubject,
   onUpdateLecturesCount,
   onBulkAddSubjects,
   onAddWeekToAll,
@@ -47,6 +50,7 @@ export default function AdminDashboard({
   const [activeTab, setActiveTab] = useState<'subjects' | 'students'>('subjects');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [editingScheduleSubject, setEditingScheduleSubject] = useState<Subject | null>(null);
 
   const filteredSubjects = subjects.filter((sub) =>
     sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -540,6 +544,13 @@ export default function AdminDashboard({
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
+                            onClick={() => setEditingScheduleSubject(sub)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            title="Edit Schedule Dates"
+                          >
+                            <Calendar className="h-3.5 w-3.5" />
+                          </button>
+                          <button
                             onClick={() => {
                               if (window.confirm(`Are you sure you want to delete ${sub.name}? This will remove all associated user attendance data.`)) {
                                 onDeleteSubject(sub.id);
@@ -809,6 +820,18 @@ export default function AdminDashboard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Schedule Editor Modal */}
+      {editingScheduleSubject && (
+        <ScheduleEditorModal
+          subject={editingScheduleSubject}
+          onClose={() => setEditingScheduleSubject(null)}
+          onSave={(updatedSub) => {
+            onUpdateSubject(updatedSub);
+            setEditingScheduleSubject(null);
+          }}
+        />
       )}
 
       {/* Global Settings Modal */}

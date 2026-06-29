@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Search, CheckCircle2, XCircle, RotateCcw, Sparkles } from 'lucide-react';
 import { Subject, StudentAttendance, AttendanceStatus } from '../types';
-import { calculateSubjectStats } from '../data';
+import { calculateSubjectStats, generateLectureDates } from '../data';
 
 const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -143,42 +143,19 @@ export default function StudentDashboard({
             });
 
             // Calculate dates if startDate is available or use fallback
-            const lectureDates: string[] = [];
-            if (sortedScheduleDays) {
-              const startStr = sub.startDate || '2024-08-01'; // Fallback for existing subjects
-              const start = new Date(startStr + 'T00:00:00');
-              const dayMap: Record<string, number> = {
-                'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-              };
-              const targetDays = sortedScheduleDays.map((d: string) => dayMap[d]).filter((d: number | undefined) => d !== undefined);
-              
-              if (targetDays.length > 0) {
-                let current = new Date(start);
-                
-                // Shift current to the most recent Monday to align with WEEK_DAYS which starts on Monday
-                let day = current.getDay();
-                // JS: 0=Sun, 1=Mon, ..., 6=Sat. We want 0=Mon, 1=Tue, ..., 6=Sun
-                let diff = day === 0 ? 6 : day - 1;
-                current.setDate(current.getDate() - diff);
-                
-                let loopGuard = 0;
-                while (lectureDates.length < sub.totalLectures) {
-                  const dayOfWeek = current.getDay();
-                  const countForDay = targetDays.filter(d => d === dayOfWeek).length;
-                  
-                  for (let i = 0; i < countForDay; i++) {
-                    if (lectureDates.length < sub.totalLectures) {
-                      lectureDates.push(`${String(current.getDate()).padStart(2, '0')}/${String(current.getMonth() + 1).padStart(2, '0')}`);
-                    }
-                  }
-                  
-                  current.setDate(current.getDate() + 1);
-                  
-                  loopGuard++;
-                  if (loopGuard > 1000) break; // sanity check limit (approx 3 years)
+            const baseLectureDates = generateLectureDates(sub);
+            
+            const lectureDates = baseLectureDates.map((baseDateStr, idx) => {
+              const dateStr = sub.customDates?.[idx] || baseDateStr;
+              if (dateStr) {
+                // format YYYY-MM-DD to DD/MM
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                  return `${parts[2]}/${parts[1]}`;
                 }
               }
-            }
+              return '';
+            });
 
             return (
               <div 

@@ -236,6 +236,60 @@ export function calculateSubjectStats(subject: Subject, records: AttendanceStatu
 }
 
 /**
+ * Shared utility to generate chronological dates for a subject based on its schedule
+ */
+export function generateLectureDates(sub: Subject): string[] {
+  const lectureDates: string[] = [];
+  const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  
+  const sortedScheduleDays = sub.scheduleDays && sub.scheduleDays.length > 0
+    ? [...sub.scheduleDays].sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b))
+    : undefined;
+
+  if (sortedScheduleDays) {
+    const startStr = sub.startDate || '2024-08-01'; // Fallback
+    const start = new Date(startStr + 'T00:00:00');
+    const dayMap: Record<string, number> = {
+      'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+    };
+    const targetDays = sortedScheduleDays.map((d: string) => dayMap[d]).filter((d: number | undefined) => d !== undefined);
+    
+    if (targetDays.length > 0) {
+      let current = new Date(start);
+      
+      // Shift current to the most recent Monday to align with WEEK_DAYS which starts on Monday
+      let day = current.getDay();
+      let diff = day === 0 ? 6 : day - 1;
+      current.setDate(current.getDate() - diff);
+      
+      let loopGuard = 0;
+      while (lectureDates.length < sub.totalLectures) {
+        const dayOfWeek = current.getDay();
+        const countForDay = targetDays.filter(d => d === dayOfWeek).length;
+        
+        for (let i = 0; i < countForDay; i++) {
+          if (lectureDates.length < sub.totalLectures) {
+            lectureDates.push(`${String(current.getFullYear())}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`);
+          }
+        }
+        
+        current.setDate(current.getDate() + 1);
+        
+        loopGuard++;
+        if (loopGuard > 1000) break; // sanity check limit (approx 3 years)
+      }
+    }
+  }
+
+  // If no scheduleDays but we need slots, return empty strings or dummy dates
+  while (lectureDates.length < sub.totalLectures) {
+    lectureDates.push('');
+  }
+
+  return lectureDates.slice(0, sub.totalLectures);
+}
+
+/**
  * Reset Supabase databases back to seed samples
  */
 export async function resetDatabase(userId: string): Promise<{ subjects: Subject[]; attendance: StudentAttendance }> {

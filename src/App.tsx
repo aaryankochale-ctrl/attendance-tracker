@@ -529,6 +529,7 @@ export default function App() {
                 setIsModalOpen(true);
               }}
               onDeleteSubject={handleDeleteSubject}
+              onUpdateSubject={handleSaveSubject}
               onUpdateLecturesCount={handleUpdateLecturesCount}
               onBulkAddSubjects={handleBulkAddSubjects}
               onAddWeekToAll={handleAddWeekToAll}
