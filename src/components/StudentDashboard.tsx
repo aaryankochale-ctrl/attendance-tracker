@@ -154,6 +154,13 @@ export default function StudentDashboard({
               
               if (targetDays.length > 0) {
                 let current = new Date(start);
+                
+                // Shift current to the most recent Monday to align with WEEK_DAYS which starts on Monday
+                let day = current.getDay();
+                // JS: 0=Sun, 1=Mon, ..., 6=Sat. We want 0=Mon, 1=Tue, ..., 6=Sun
+                let diff = day === 0 ? 6 : day - 1;
+                current.setDate(current.getDate() - diff);
+                
                 let loopGuard = 0;
                 while (lectureDates.length < sub.totalLectures) {
                   const dayOfWeek = current.getDay();

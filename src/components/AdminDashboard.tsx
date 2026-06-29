@@ -24,6 +24,7 @@ interface AdminDashboardProps {
   onBulkAddSubjects: (subjects: Subject[]) => void;
   onAddWeekToAll: () => void;
   onRemoveWeekFromAll: () => void;
+  onAddDayToAll: () => void;
   onBulkUpdateAll: (updates: { startDate?: string; scheduleDays?: string[] }) => void;
 }
 
@@ -40,6 +41,7 @@ export default function AdminDashboard({
   onBulkAddSubjects,
   onAddWeekToAll,
   onRemoveWeekFromAll,
+  onAddDayToAll,
   onBulkUpdateAll,
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'subjects' | 'students'>('subjects');
@@ -456,6 +458,13 @@ export default function AdminDashboard({
                 className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-bold text-sm hover:bg-rose-100 transition-all shadow-sm active:scale-[0.98]"
               >
                 <span>Remove Week</span>
+              </button>
+              <button
+                onClick={onAddDayToAll}
+                className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-sm hover:bg-indigo-100 transition-all shadow-sm active:scale-[0.98]"
+              >
+                <Plus className="h-4.5 w-4.5" />
+                <span>Add Day</span>
               </button>
               <button
                 onClick={onAddWeekToAll}

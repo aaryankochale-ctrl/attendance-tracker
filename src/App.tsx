@@ -267,6 +267,27 @@ export default function App() {
     await syncAndSave(updatedSubjects, updatedAttendance);
   };
 
+  // Add 1 Day (lecture) to All Subjects
+  const handleAddDayToAll = async () => {
+    let updatedSubjects = [...subjects];
+    let updatedAttendance = { ...attendance };
+
+    updatedSubjects = updatedSubjects.map(sub => {
+      const newTotal = Math.min(365, sub.totalLectures + 1);
+      return { ...sub, totalLectures: newTotal };
+    });
+
+    updatedSubjects.forEach(sub => {
+      const currentRecords = updatedAttendance[sub.id] || [];
+      if (currentRecords.length < sub.totalLectures) {
+        const padding = Array(sub.totalLectures - currentRecords.length).fill('unmarked');
+        updatedAttendance[sub.id] = [...currentRecords, ...padding];
+      }
+    });
+
+    await syncAndSave(updatedSubjects, updatedAttendance);
+  };
+
   // Remove 1 Week from All Subjects
   const handleRemoveWeekFromAll = async () => {
     let updatedSubjects = [...subjects];
@@ -512,6 +533,7 @@ export default function App() {
               onBulkAddSubjects={handleBulkAddSubjects}
               onAddWeekToAll={handleAddWeekToAll}
               onRemoveWeekFromAll={handleRemoveWeekFromAll}
+              onAddDayToAll={handleAddDayToAll}
               onBulkUpdateAll={handleBulkUpdateAll}
             />
           </div>
