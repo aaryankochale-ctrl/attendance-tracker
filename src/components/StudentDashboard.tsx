@@ -154,12 +154,21 @@ export default function StudentDashboard({
               
               if (targetDays.length > 0) {
                 let current = new Date(start);
+                let loopGuard = 0;
                 while (lectureDates.length < sub.totalLectures) {
-                  if (targetDays.includes(current.getDay())) {
-                    lectureDates.push(`${String(current.getDate()).padStart(2, '0')}/${String(current.getMonth() + 1).padStart(2, '0')}`);
+                  const dayOfWeek = current.getDay();
+                  const countForDay = targetDays.filter(d => d === dayOfWeek).length;
+                  
+                  for (let i = 0; i < countForDay; i++) {
+                    if (lectureDates.length < sub.totalLectures) {
+                      lectureDates.push(`${String(current.getDate()).padStart(2, '0')}/${String(current.getMonth() + 1).padStart(2, '0')}`);
+                    }
                   }
+                  
                   current.setDate(current.getDate() + 1);
-                  if (lectureDates.length > 400) break; // sanity check limit
+                  
+                  loopGuard++;
+                  if (loopGuard > 1000) break; // sanity check limit (approx 3 years)
                 }
               }
             }
