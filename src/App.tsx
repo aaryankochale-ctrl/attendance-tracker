@@ -289,6 +289,16 @@ export default function App() {
     await syncAndSave(updatedSubjects, updatedAttendance);
   };
 
+  // Bulk update specific fields for all subjects
+  const handleBulkUpdateAll = async (updates: { startDate?: string; scheduleDays?: string[] }) => {
+    let updatedSubjects = subjects.map(sub => ({
+      ...sub,
+      ...(updates.startDate ? { startDate: updates.startDate } : {}),
+      ...(updates.scheduleDays ? { scheduleDays: updates.scheduleDays } : {})
+    }));
+    await syncAndSave(updatedSubjects, attendance);
+  };
+
   // Delete subject
   const handleDeleteSubject = async (id: string) => {
     const updatedSubjects = subjects.filter(s => s.id !== id);
@@ -502,6 +512,7 @@ export default function App() {
               onBulkAddSubjects={handleBulkAddSubjects}
               onAddWeekToAll={handleAddWeekToAll}
               onRemoveWeekFromAll={handleRemoveWeekFromAll}
+              onBulkUpdateAll={handleBulkUpdateAll}
             />
           </div>
         )}

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { Plus, Edit2, Trash2, MapPin, User, Calendar, BookOpen, AlertCircle, Search, Users, ChevronRight, Upload, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, MapPin, User, Calendar, BookOpen, AlertCircle, Search, Users, ChevronRight, Upload, Download, Settings, X, Check } from 'lucide-react';
 import { Subject, Profile, AllUsersAttendance, SubjectStats } from '../types';
 import { calculateSubjectStats } from '../data';
 import { SUBJECT_COLORS } from '../data';
@@ -24,6 +24,7 @@ interface AdminDashboardProps {
   onBulkAddSubjects: (subjects: Subject[]) => void;
   onAddWeekToAll: () => void;
   onRemoveWeekFromAll: () => void;
+  onBulkUpdateAll: (updates: { startDate?: string; scheduleDays?: string[] }) => void;
 }
 
 const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -39,6 +40,7 @@ export default function AdminDashboard({
   onBulkAddSubjects,
   onAddWeekToAll,
   onRemoveWeekFromAll,
+  onBulkUpdateAll,
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'subjects' | 'students'>('subjects');
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,6 +66,16 @@ export default function AdminDashboard({
   const envApiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || '';
   const [geminiApiKey, setGeminiApiKey] = useState(() => envApiKey || localStorage.getItem('geminiApiKey') || '');
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+
+  const [showGlobalSettingsModal, setShowGlobalSettingsModal] = useState(false);
+  const [globalStartDate, setGlobalStartDate] = useState('');
+  const [globalScheduleDays, setGlobalScheduleDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+  
+  const toggleGlobalDay = (day: string) => {
+    setGlobalScheduleDays(prev => 
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b))
+    );
+  };
 
   const formatDateLocal = (date: Date) => {
     const y = date.getFullYear();
@@ -433,6 +445,13 @@ export default function AdminDashboard({
                 <span>Upload Timetable</span>
               </button>
               <button
+                onClick={() => setShowGlobalSettingsModal(true)}
+                className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-100 transition-all shadow-sm active:scale-[0.98]"
+              >
+                <Settings className="h-4.5 w-4.5 text-slate-500" />
+                <span>Global Setup</span>
+              </button>
+              <button
                 onClick={onRemoveWeekFromAll}
                 className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-bold text-sm hover:bg-rose-100 transition-all shadow-sm active:scale-[0.98]"
               >
@@ -777,6 +796,96 @@ export default function AdminDashboard({
                 className="px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
                 Save & Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      {/* Global Settings Modal */}
+      {showGlobalSettingsModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col transform transition-all">
+            <div className="flex justify-between items-center px-6 py-4.5 bg-slate-50 border-b border-slate-200">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg text-slate-700 bg-white border border-slate-200 flex items-center justify-center shadow-xs">
+                  <Settings className="h-4.5 w-4.5" />
+                </div>
+                <h3 className="font-sans font-bold text-slate-800 text-lg">
+                  Global Configuration
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowGlobalSettingsModal(false)}
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors border border-transparent hover:border-slate-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex items-start space-x-3 text-xs leading-relaxed shadow-sm">
+                <AlertCircle className="h-4.5 w-4.5 text-indigo-500 mt-0.5 flex-shrink-0" />
+                <div className="text-indigo-805">
+                  These settings will be applied to <strong>ALL</strong> subjects immediately. Leave empty to keep existing subject values.
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Global Start Date
+                </label>
+                <input
+                  type="date"
+                  value={globalStartDate}
+                  onChange={(e) => setGlobalStartDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-slate-800 bg-slate-50 border border-slate-200 transition-all text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-505"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Global Schedule Days
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {WEEK_DAYS.map((day) => {
+                    const active = globalScheduleDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => toggleGlobalDay(day)}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold ${
+                          active
+                            ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        {active && <Check className="h-3.5 w-3.5" />}
+                        <span>{day}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-end space-x-3 bg-slate-50">
+              <button
+                onClick={() => setShowGlobalSettingsModal(false)}
+                className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onBulkUpdateAll({
+                    ...(globalStartDate ? { startDate: globalStartDate } : {}),
+                    ...(globalScheduleDays.length > 0 ? { scheduleDays: globalScheduleDays } : {})
+                  });
+                  setShowGlobalSettingsModal(false);
+                  setGlobalStartDate('');
+                }}
+                className="flex items-center space-x-1.5 px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-sm"
+              >
+                <span>Apply to All</span>
               </button>
             </div>
           </div>
