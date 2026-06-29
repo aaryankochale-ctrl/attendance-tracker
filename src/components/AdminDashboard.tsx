@@ -800,6 +800,8 @@ export default function AdminDashboard({
             </div>
           </div>
         </div>
+      )}
+
       {/* Global Settings Modal */}
       {showGlobalSettingsModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
