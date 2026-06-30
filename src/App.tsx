@@ -76,9 +76,25 @@ export default function App() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const loadedSubjects = await getSubjects();
-        setSubjects(loadedSubjects);
-        const loadedAttendance = await getAttendance(loadedSubjects, session.user.id);
+        const dbSubjects = await getSubjects();
+        let mergedSubjects = dbSubjects;
+        
+        // Supabase schema doesn't have startDate or customDates yet, so we merge them from local storage
+        const localSubjsStr = localStorage.getItem('localSubjects');
+        if (localSubjsStr) {
+          const localSubjs: Subject[] = JSON.parse(localSubjsStr);
+          mergedSubjects = dbSubjects.map(dbSub => {
+            const local = localSubjs.find(s => s.id === dbSub.id);
+            return {
+              ...dbSub,
+              ...(local?.startDate ? { startDate: local.startDate } : {}),
+              ...(local?.customDates ? { customDates: local.customDates } : {})
+            };
+          });
+        }
+        
+        setSubjects(mergedSubjects);
+        const loadedAttendance = await getAttendance(mergedSubjects, session.user.id);
         setAttendance(loadedAttendance);
       } catch (err) {
         console.error("Failed to load data:", err);
@@ -103,10 +119,14 @@ export default function App() {
     }
   }, [isAdminUser, role]);
 
-  // Sync state helpers
   const syncAndSave = async (updatedSubjects: Subject[], updatedAttendance: StudentAttendance) => {
     setSubjects(updatedSubjects);
     setAttendance(updatedAttendance);
+    
+    // Save to local storage for quick access and preserving non-DB schema fields
+    localStorage.setItem('localSubjects', JSON.stringify(updatedSubjects));
+    localStorage.setItem('localAttendance', JSON.stringify(updatedAttendance));
+
     await saveSubjects(updatedSubjects);
     if (session) {
       await saveAttendance(updatedAttendance, session.user.id);

@@ -98,7 +98,9 @@ export async function getSubjects(): Promise<Subject[]> {
  * Save subjects to Supabase (upsert)
  */
 export async function saveSubjects(subjects: Subject[]): Promise<void> {
-  const { error } = await supabase.from('subjects').upsert(subjects);
+  // Strip columns that don't exist in Supabase schema yet to prevent upsert errors
+  const dbPayload = subjects.map(({ startDate, customDates, ...rest }) => rest);
+  const { error } = await supabase.from('subjects').upsert(dbPayload);
   if (error) {
     console.error('Error saving subjects:', error);
   }
