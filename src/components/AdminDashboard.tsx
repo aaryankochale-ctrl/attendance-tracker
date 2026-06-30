@@ -578,6 +578,12 @@ export default function AdminDashboard({
                         </div>
                         <div className="col-span-2 flex items-center space-x-2 text-slate-500">
                           <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                          <span className="truncate font-medium text-slate-600">
+                            Starts: {sub.startDate || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="col-span-2 flex items-center space-x-2 text-slate-500">
+                          <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
                           <div className="flex flex-wrap gap-1">
                             {sub.scheduleDays && sub.scheduleDays.length > 0 ? (
                               Object.entries(

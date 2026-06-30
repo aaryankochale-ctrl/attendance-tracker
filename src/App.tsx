@@ -314,7 +314,7 @@ export default function App() {
   const handleBulkUpdateAll = async (updates: { startDate?: string; scheduleDays?: string[] }) => {
     let updatedSubjects = subjects.map(sub => ({
       ...sub,
-      ...(updates.startDate ? { startDate: updates.startDate } : {}),
+      ...(updates.startDate ? { startDate: updates.startDate, customDates: undefined } : {}),
       ...(updates.scheduleDays ? { scheduleDays: updates.scheduleDays } : {})
     }));
     await syncAndSave(updatedSubjects, attendance);
