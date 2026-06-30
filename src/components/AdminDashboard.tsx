@@ -612,8 +612,7 @@ export default function AdminDashboard({
                         <button
                           onClick={() => {
                             const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
-                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
-                            onUpdateLecturesCount(sub.id, Math.max(0, (currentWeeks - 1) * daysCount));
+                            onUpdateLecturesCount(sub.id, Math.max(0, sub.totalLectures - daysCount));
                           }}
                           disabled={sub.totalLectures <= 0}
                           className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
@@ -635,8 +634,7 @@ export default function AdminDashboard({
                         <button
                           onClick={() => {
                             const daysCount = Math.max(1, sub.scheduleDays?.length || 1);
-                            const currentWeeks = Math.ceil(sub.totalLectures / daysCount);
-                            onUpdateLecturesCount(sub.id, Math.min(52 * daysCount, (currentWeeks + 1) * daysCount));
+                            onUpdateLecturesCount(sub.id, Math.min(52 * daysCount, sub.totalLectures + daysCount));
                           }}
                           disabled={Math.ceil(sub.totalLectures / Math.max(1, sub.scheduleDays?.length || 1)) >= 52}
                           className="h-8 w-8 rounded-full border border-slate-200 bg-white shadow-3xs hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-white transition-all text-sm select-none"
